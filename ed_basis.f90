@@ -4,6 +4,7 @@ module ed_basis
     use ed_utils
     use alloc
     use precision
+    use ionew
     
     implicit none
 
@@ -13,8 +14,10 @@ module ed_basis
     integer, pointer :: nbasis(:)       
     integer :: nbasis_loc ! number of basis in the sector local to the node.
 
-    integer(kind=kind_basis), pointer :: basis_up(:)
-    integer(kind=kind_basis), pointer :: basis_down(:)
+    ! For up,down basis, 4-bit integer is sufficient,
+    ! because the maximum number of sites will not be more than 31.
+    integer, pointer :: basis_up(:)
+    integer, pointer :: basis_down(:)
 
     integer, pointer :: basis_up_idx(:)
     integer, pointer :: basis_down_idx(:)
@@ -124,6 +127,7 @@ contains
                 endif
             enddo
         enddo
+
     end subroutine generate_basis
 
     integer(kind=kind_basis) function ed_basis_get(ib_g)
@@ -135,5 +139,32 @@ contains
 
         ed_basis_get=basis_up(iup)+2**(Nsite)*basis_down(idown)
     end function ed_basis_get
+
+    integer function get_basis_idx(basis)
+        integer(kind=kind_basis) :: basis
+        integer :: bup, bdown
+
+        bup = mod(basis,2**Nsite)
+        bdown = basis/(2**Nsite)
+
+        get_basis_idx = basis_up_idx(bup) + &
+                        (basis_down_idx(bdown)-1)*nbasis_up(isector)
+
+    end function get_basis_idx
+
+#ifdef DEBUG
+    subroutine dump_basis
+        integer :: i,iunit
+        character(len=100) :: fname
+
+        call io_assign(iunit)
+        write(fname,"(A,I1)") "basis.node.",node
+        open(unit=iunit,file=fname,status="replace")
+        do i=1,nbasis_loc
+            write(iunit,"(I5,B)") i,ed_basis_get(offsets(node)+i)
+        enddo
+        close(iunit)
+    end subroutine dump_basis
+#endif
 
 end module ed_basis

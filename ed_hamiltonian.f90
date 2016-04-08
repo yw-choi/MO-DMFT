@@ -1,5 +1,6 @@
 module ed_hamiltonian
     use precision
+    use ed_operators
     use ed_config
     use parallel_params
     use ed_utils
@@ -82,4 +83,106 @@ contains
             Hik(i,i) = -0.5_dp*(coskx + cosky)
         enddo
     end subroutine find_hk
+
+    subroutine multiply_H(nglobal,nloc,A,B)
+
+        real(dp), intent(in) :: A(nloc)
+        integer, intent(in) :: nglobal, nloc
+        real(dp), intent(out) :: B(nloc)
+
+        real(dp) :: A_all(nglobal)
+        integer :: i,j,k
+        integer :: ispin,jspin,iorb,jorb,ibath
+        integer(kind=kind_basis) :: basis_i, basis_j
+
+        real(dp) :: coeff_sum, coeff
+
+        call mpi_allgatherv(A,nloc,mpi_double_precision,A_all,&
+            nlocals,offsets,mpi_double_precision,comm,ierr)
+
+        B(1:nloc) = 0.0_dp
+        iloop: do i=1,nloc
+            ! i-th basis state
+            basis_i = ed_basis_get(offsets(node)+i)
+            
+            ! [diagonal elements]
+            ! B(i) = H(i,i)*A(i)
+            coeff_sum = 0.0_dp
+            ! 1. onsite 
+            do ispin=1,2
+                do iorb=1,Norb
+                    call onsite(basis_i,iorb,ispin,basis_j,coeff)
+                    coeff_sum = coeff_sum+coeff 
+                enddo
+                do ibath=1,Nbath
+                    call onsite(basis_i,Norb+ibath,ispin,basis_j,coeff)
+                    coeff_sum = coeff_sum+coeff
+                enddo
+            enddo
+            ! 2. density-density : intra-orbital
+            do iorb=1,Norb
+                call dens_dens(basis_i,iorb,iorb,1,2,basis_j,coeff)
+                coeff_sum = coeff_sum + coeff 
+            enddo
+            ! 3. density-density : inter-orbital
+            do iorb=1,Norb
+                do jorb=iorb+1,Norb
+                    do ispin=1,2
+                        do jspin=1,2
+                            call dens_dens(basis_i,iorb,jorb,ispin,jspin,basis_j,coeff)
+                            coeff_sum = coeff_sum + coeff
+                        enddo
+                    enddo
+                enddo
+            enddo
+
+            B(i) = coeff_sum*A_all(offsets(node)+i)
+
+            ! [off-diagonal elements]
+            ! B(i) = sum_i H(i,j)*A(j)
+            ! 1. hybridization
+            do ispin=1,2
+                do iorb=1,Norb
+                    do ibath=1,Nbath
+                        call hybridization1(basis_i,iorb,ibath,ispin,basis_j,coeff)
+                        if (basis_j.ne.0) then
+                            j = get_basis_idx(basis_j) 
+                            B(i) = B(i) + coeff*A_all(j)
+                        endif
+                        call hybridization2(basis_i,iorb,ibath,ispin,basis_j,coeff)
+                        if (basis_j.ne.0) then
+                            j = get_basis_idx(basis_j) 
+                            B(i) = B(i) + coeff*A_all(j)
+                        endif
+                    enddo
+                enddo
+            enddo
+            ! 2. spin-flip
+            do iorb=1,Norb
+                do jorb=1,Norb
+                    if (iorb.eq.jorb) then
+                        cycle
+                    endif
+                    call spin_flip(basis_i,iorb,jorb,basis_j,coeff)
+                    if (basis_j.ne.0) then
+                        j = get_basis_idx(basis_j) 
+                        B(i) = B(i) + coeff*A_all(j)
+                    endif
+                enddo
+            enddo
+            ! 3. pair-exchange
+            do iorb=1,Norb
+                do jorb=1,Norb
+                    if (iorb.eq.jorb) then
+                        cycle
+                    endif
+                    call pair_exchange(basis_i,iorb,jorb,basis_j,coeff)
+                    if (basis_j.ne.0) then
+                        j = get_basis_idx(basis_j) 
+                        B(i) = B(i) + coeff*A_all(j)
+                    endif
+                enddo
+            enddo
+        enddo iloop
+    end subroutine multiply_H
 end module ed_hamiltonian

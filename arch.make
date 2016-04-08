@@ -1,8 +1,9 @@
 # 
 SIESTA_ARCH     = ifort-mpich
 FC              = mpif90
-FFLAGS          = -traceback
-LIBS            = -mkl=sequential
+FFLAGS          = -traceback -O3 -fast -no-ipo
+LIBS            = -mkl=sequential ./lib/ARPACK/libarpack_OSX.a \
+                ./lib/ARPACK/parpack_MPI-OSX.a
 
 ################################################################
 
