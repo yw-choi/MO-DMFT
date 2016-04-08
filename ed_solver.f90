@@ -12,6 +12,7 @@ module ed_solver
     real(dp), allocatable :: eigval(:), eigval_all(:)
     real(dp), allocatable :: eigvec(:,:)
 
+    public
 contains
 
     subroutine ed_solve
@@ -21,9 +22,8 @@ contains
         if (.not.allocated(eigval_all)) allocate(eigval_all(nev*nsector))
 
         do isector=1,nsector
-            call prepare_hamiltonian_sector
+            call prepare_hamiltonian_sector(isector)
             allocate(eigvec(nbasis_loc,nev))
-
             
 
             call end_hamiltonian_sector

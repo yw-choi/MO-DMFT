@@ -8,7 +8,7 @@ program MO_DMFT_ED
     ! DMFT-ED realted modules
     use ed_config
     use ed_hamiltonian
-    ! use ed_solver
+    use ed_solver
     ! use ed_green_ftn
     ! use ed_minimize
     ! use ed_converged
@@ -62,13 +62,13 @@ program MO_DMFT_ED
     do while(.not.converged.and.iloop<nloop)
         call ed_solve
 
-        call ed_green_ftn
+        ! call ed_green_ftn
 
-        call ed_delta_new
+        ! call ed_delta_new
 
-        call ed_minimize 
+        ! call ed_minimize 
 
-        call ed_converged(converged)
+        ! call ed_converged(converged)
 
         iloop = iloop + 1
     enddo

@@ -27,7 +27,7 @@ module ed_config
     real(dp) :: small
     real(dp) :: scf_tol
     integer :: Nstep
-    integer :: Niter
+    integer :: Nloop
     integer :: Nev
 
     integer :: Nq
@@ -84,7 +84,7 @@ contains
 
         Nstep = fdf_integer("DMFT.ContinuedFractionSteps", 50)
 
-        Niter = fdf_integer("DMFT.MaxIterations", 100)
+        Nloop = fdf_integer("DMFT.MaxIterations", 100)
         
         scf_tol = fdf_double("DMFT.ScfTolerance", 1d-4)
 

@@ -18,7 +18,7 @@ module ed_hamiltonian
     integer, allocatable :: nlocals(:), offsets(:)
 contains
 
-    subroutine prepare_sector(isec)
+    subroutine prepare_hamiltonian_sector(isec)
         integer, intent(in) :: isec
 
         integer :: nd, nam, i
@@ -47,11 +47,11 @@ contains
         if (node.eq.0) then
             write(6,*) "[Dimension of the sector]"
         endif
-    end subroutine prepare_sector
+    end subroutine prepare_hamiltonian_sector
 
-    subroutine end_sector
+    subroutine end_hamiltonian_sector
 
-    end subroutine end_sector
+    end subroutine end_hamiltonian_sector
 
     subroutine ed_set_band_structure
         integer nw
