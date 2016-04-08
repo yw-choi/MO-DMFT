@@ -7,6 +7,7 @@ program MO_DMFT_ED
 
     ! DMFT-ED realted modules
     use ed_config
+    use ed_basis
     use ed_hamiltonian
     use ed_solver
     ! use ed_green_ftn
@@ -46,6 +47,7 @@ program MO_DMFT_ED
     ! read input parameters
     call ed_read_options
     call ed_hamiltonian_init
+    call ed_basis_init
     call ed_set_band_structure
     call ed_solver_init
 
