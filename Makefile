@@ -8,7 +8,8 @@ default: main
 #
 include arch.make
 
-DMFT_OBJS = ed_config.o ed_hamiltonian.o ed_solver.o ed_utils.o ed_operators.o
+# DMFT_OBJS = ed_config.o ed_hamiltonian.o ed_solver.o ed_utils.o ed_operators.o
+DMFT_OBJS = ed_config.o
 
 MOD_OBJS = sys.o parallel_params.o precision.o
 OBJS = main.o $(DMFT_OBJS)
@@ -27,9 +28,9 @@ $(FDF):
 # Dependencies
 main.o ed_config.o: $(FDF)
 
-main.o: parallel_params.o ed_config.o ed_hamiltonian.o ed_solver.o
-ed_solver.o: ed_utils.o
-ed_hamiltonian.o: ed_operators.o ed_utils.o
+# main.o: parallel_params.o ed_config.o ed_hamiltonian.o ed_solver.o
+# ed_solver.o: ed_utils.o
+# ed_hamiltonian.o: ed_operators.o ed_utils.o
 
 main: $(FDF) $(ALL_OBJS)
 	$(FC) -o main.x $(LDFLAGS) $(ALL_OBJS) $(FDF) $(LIBS) 
