@@ -37,8 +37,8 @@ module ed_config
     type(block_fdf)            :: bfdf
     type(parsed_line), pointer :: pline
 contains
-    
-    subroutine ed_config_init
+
+    subroutine ed_read_options
         integer :: i,j
 
         Norb = fdf_integer("DMFT.Norbs",2)
@@ -92,8 +92,6 @@ contains
         Nq = fdf_integer("DMFT.Nq",10000)
         Nw = fdf_integer("DMFT.Nw",2000)
 
-    end subroutine ed_config_init
-
-
+    end subroutine ed_read_options
 
 end module ed_config

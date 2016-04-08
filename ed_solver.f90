@@ -17,6 +17,7 @@ contains
 
     subroutine ed_solve
         integer :: isector
+        call timer('ed_solve',1)
 
         if (.not.allocated(eigval)) allocate(eigval(nev))
         if (.not.allocated(eigval_all)) allocate(eigval_all(nev*nsector))
@@ -30,6 +31,7 @@ contains
             deallocate(eigvec)
         enddo
 
+        call timer('ed_solve',2)
     end subroutine ed_solve
 
 end module ed_solver

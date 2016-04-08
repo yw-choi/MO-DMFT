@@ -9,44 +9,68 @@ module ed_hamiltonian
     complex(dp), allocatable :: Hk(:,:,:)
     real(dp), allocatable :: ef(:)
 
-    integer :: nbasis_up 
-    integer :: nbasis_down
-    integer :: nbasis       ! number of basis in the sector.
-    integer :: nbasis_loc   ! number of basis in the sector local to the node.
-
-    integer :: isector
     integer, allocatable :: nlocals(:), offsets(:)
+    integer, allocatable :: nbasis_up(:)
+    integer, allocatable :: nbasis_down(:)
+    integer, allocatable :: nbasis(:)       
+    integer :: nbasis_loc ! number of basis in the sector local to the node.
+
+    ! current sector of the hamiltonain.
+    integer :: isector
 contains
+
+    ! Hamiltonian related initialization before entering DMFT loop
+    subroutine ed_hamiltonian_init
+        integer :: i, nd
+
+        allocate(nlocals(0:Nodes-1))
+        allocate(offsets(0:Nodes-1))
+
+        allocate(nbasis_up(nsector))
+        allocate(nbasis_down(nsector))
+        allocate(nbasis(nsector))
+
+        do i=1,nsector
+            nd = nelec(i) - nup(i)
+            nbasis_up(i) = icom(nelec(i),nup(i))
+            nbasis_down(i) = icom(nelec(i),nd)
+            nbasis(i) = nbasis_up(i)*nbasis_down(i)
+        enddo
+
+        if (node.eq.0) then
+            write(6,"(A)") "|------------------------------------------------------------------------|"
+            write(6,"(A)") "  Dimension of each sector" 
+            write(6,"(A)") "|------------------------------------------------------------------------|"
+            write(6,"(A)") "| isector | Ne      | Nup     | Ndown   | nbasis   | nbasis_u | nbasis_d |"
+            write(6,"(A)") "|------------------------------------------------------------------------|"
+            do i=1,nsector
+                write(6,"(7(I9,x))") i,Nelec(i),Nup(i),(Nelec(i)-nup(i)),nbasis(i),nbasis_up(i),nbasis_down(i)
+            enddo
+            write(6,"(A)") "|------------------------------------------------------------------------|"
+        endif
+
+    end subroutine ed_hamiltonian_init
 
     subroutine prepare_hamiltonian_sector(isec)
         integer, intent(in) :: isec
 
-        integer :: nd, nam, i
-
-        if (.not.allocated(nlocals)) allocate(nlocals(0:Nodes-1))
-        if (.not.allocated(offsets)) allocate(offsets(0:Nodes-1))
+        integer :: nam, i
 
         isector = isec
-
-        nd = nelec(isector) - nup(isector)
-
-        nbasis_up = icom(nelec(isector),nup(isector))
-        nbasis_down = icom(nelec(isector),nd)
-        nbasis = nbasis_up*nbasis_down
         
-        nbasis_loc = nbasis/nodes
-        nam = mod(nbasis,nodes)
+        nbasis_loc = nbasis(isector)/nodes
+        nam = mod(nbasis(isector),nodes)
         if (node.lt.nam) nbasis_loc = nbasis_loc + 1
 
         call mpi_allgather(nbasis_loc,1,mpi_integer,nlocals(0),1,mpi_integer,comm,ierr)
-        offsets(0) = 0                ! note : starting from 0
+
+        offsets(0) = 0 
         do i = 1, nodes-1
             offsets(i) = offsets(i-1) + nlocals(i-1)
         enddo
 
-        if (node.eq.0) then
-            write(6,*) "[Dimension of the sector]"
-        endif
+        ! generate basis
+
     end subroutine prepare_hamiltonian_sector
 
     subroutine end_hamiltonian_sector

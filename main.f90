@@ -42,13 +42,10 @@ program MO_DMFT_ED
     call timestamp2("DMFT PART START")
 
     ! read input parameters
-    call ed_config_init
+    call ed_read_options
+    call ed_hamiltonian_init
 
-    if (node.eq.0) then
-        write(6,*) "--------------------------------------------------"
-        write(6,*) "Seting up band structure"
-        write(6,*) "--------------------------------------------------"
-    endif
+    stop
     ! Set band structure 
     call ed_set_band_structure
 
