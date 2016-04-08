@@ -1,0 +1,7 @@
+lib
+*.o
+*.x
+*.mod
+run
+test
+
