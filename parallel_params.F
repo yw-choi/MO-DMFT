@@ -3,12 +3,13 @@
          implicit none
          include 'mpif.h'
 
-         integer, save :: Node
-         integer, save :: Nodes
-         logical, save :: ParallelOverK
+         integer, save, public :: Node
+         integer, save, public :: Nodes
+         logical, save, public :: ParallelOverK
 
-         integer, parameter :: comm = MPI_Comm_world
-         integer :: ierr
+         integer, parameter, public :: comm = MPI_Comm_world
+         integer, public :: ierr
 
+         private
 
       end module parallel_params

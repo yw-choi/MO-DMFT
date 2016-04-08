@@ -3,16 +3,18 @@ module ed_hamiltonian
     use ed_config
     use parallel_params
     use ed_utils
+    use alloc
 
     implicit none
+    include 'mpif.h'
 
-    complex(dp), allocatable :: Hk(:,:,:)
-    real(dp), allocatable :: ef(:)
+    complex(dp), pointer :: Hk(:,:,:)
+    real(dp), pointer :: ef(:)
 
-    integer, allocatable :: nlocals(:), offsets(:)
-    integer, allocatable :: nbasis_up(:)
-    integer, allocatable :: nbasis_down(:)
-    integer, allocatable :: nbasis(:)       
+    integer, pointer :: nlocals(:), offsets(:)
+    integer, pointer :: nbasis_up(:)
+    integer, pointer :: nbasis_down(:)
+    integer, pointer :: nbasis(:)       
     integer :: nbasis_loc ! number of basis in the sector local to the node.
 
     ! current sector of the hamiltonain.
@@ -23,12 +25,12 @@ contains
     subroutine ed_hamiltonian_init
         integer :: i, nd
 
-        allocate(nlocals(0:Nodes-1))
-        allocate(offsets(0:Nodes-1))
+        call re_alloc(nlocals,0,Nodes-1,name="nlocals",routine="ed_hamiltonian_init")
+        call re_alloc(offsets,0,Nodes-1,name="offsets",routine="ed_hamiltonian_init")
 
-        allocate(nbasis_up(nsector))
-        allocate(nbasis_down(nsector))
-        allocate(nbasis(nsector))
+        call re_alloc(nbasis_up,1,nsector,name="nbasis_up",routine="ed_hamiltonian_init")
+        call re_alloc(nbasis_down,1,nsector,name="nbasis_down",routine="ed_hamiltonian_init")
+        call re_alloc(nbasis,1,nsector,name="nbasis",routine="ed_hamiltonian_init")
 
         do i=1,nsector
             nd = nelec(i) - nup(i)
@@ -49,6 +51,8 @@ contains
             write(6,"(A)") "|------------------------------------------------------------------------|"
         endif
 
+        call re_alloc(Hk,1,norb,1,norb,1,nq,name="Hk",routine="ed_hamiltonian_init")
+        call re_alloc(ef,1,norb,name="ef",routine="ed_hamiltonian_init")
     end subroutine ed_hamiltonian_init
 
     subroutine prepare_hamiltonian_sector(isec)
@@ -83,10 +87,8 @@ contains
         real(dp):: kx,ky,pi,de,energy
         parameter(pi=acos(-1.D0))
         real(dp):: dq !gb gaussian broadening
-        real(dp), allocatable::dos(:,:)
         integer:: i,j,ik,nk,iorb
 
-        allocate(Hk(norb,norb,nq),ef(norb))
         de = 0.01D0
 
         Hk(:,:,:) = dcmplx(0.D0,0.D0)

@@ -6,29 +6,34 @@ module ed_solver
     use parallel_params
     use sys
     use ed_utils
+    use alloc
 
     implicit none
 
-    real(dp), allocatable :: eigval(:), eigval_all(:)
-    real(dp), allocatable :: eigvec(:,:)
+    real(dp), pointer :: eigval(:), eigval_all(:)
+    real(dp), pointer :: eigvec(:,:)
 
     public
 contains
 
-    subroutine ed_solve
+    subroutine ed_solver_init
+
+        call re_alloc(eigval,1,nev,name="eigval",routine="ed_solve")
+        call re_alloc(eigval_all,1,nev*nsector,name="eigval_all",routine="ed_solve")
+
+    end subroutine ed_solver_init
+
+    subroutine ed_solve(iloop)
+        integer, intent(in) :: iloop
         integer :: isector
         call timer('ed_solve',1)
 
-        if (.not.allocated(eigval)) allocate(eigval(nev))
-        if (.not.allocated(eigval_all)) allocate(eigval_all(nev*nsector))
-
         do isector=1,nsector
             call prepare_hamiltonian_sector(isector)
-            allocate(eigvec(nbasis_loc,nev))
-            
+            call re_alloc(eigvec,1,nbasis_loc,1,nev,"eigvec","ed_solve", &
+                         copy=.false.,shrink=.true.)
 
             call end_hamiltonian_sector
-            deallocate(eigvec)
         enddo
 
         call timer('ed_solve',2)

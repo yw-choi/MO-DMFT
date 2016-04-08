@@ -186,6 +186,7 @@ C
       use precision
       use ionew
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      include 'mpif.h'
       integer :: DAT_double  = MPI_double_precision, 
      &           DAT_2double = MPI_2double_precision,
      &           DAT_dcomplex = MPI_double_complex

@@ -15,7 +15,6 @@ c     Logical units min_lun to min_max are managed by this module.
       use sys
 
       implicit none
-      include 'mpif.h'
 
 c
 
@@ -33,6 +32,7 @@ c
       CONTAINS
 
       subroutine io_setup
+      include 'mpif.h'
 !
 !     Sets IOnode
 #ifdef MPI
