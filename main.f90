@@ -6,7 +6,7 @@ program MO_DMFT_ED
 
     ! DMFT-ED realted modules
     use ed_config
-    ! use ed_hamiltonian
+    use ed_hamiltonian
     ! use ed_solver
     ! use ed_green_ftn
     ! use ed_minimize
@@ -32,7 +32,7 @@ program MO_DMFT_ED
     call ed_config_init
 
     ! Set band structure 
-    ! call ed_set_band_structure
+    call ed_set_band_structure
 
     ! DMFT Loop
     iloop = 0

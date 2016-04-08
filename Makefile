@@ -8,8 +8,8 @@ default: main
 #
 include arch.make
 
-# DMFT_OBJS = ed_config.o ed_hamiltonian.o ed_solver.o ed_utils.o ed_operators.o
-DMFT_OBJS = ed_config.o
+# DMFT_OBJS = ed_config.o ed_solver.o ed_utils.o ed_operators.o
+DMFT_OBJS = ed_config.o ed_hamiltonian.o 
 
 MOD_OBJS = sys.o parallel_params.o precision.o
 OBJS = main.o $(DMFT_OBJS)
