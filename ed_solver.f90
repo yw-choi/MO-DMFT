@@ -12,34 +12,31 @@ module ed_solver
 
     implicit none
 
-    real(dp), pointer :: eigval(:), eigval_all(:)
-    real(dp), pointer :: eigvec(:,:)
 
     public
 contains
 
-    subroutine ed_solver_init
-
-        call re_alloc(eigval,1,nev,name="eigval",routine="ed_solve")
-        call re_alloc(eigval_all,1,nev*nsector,name="eigval_all",routine="ed_solve")
-
-    end subroutine ed_solver_init
-
     subroutine ed_solve(iloop,nev_calc)
         integer, intent(in) :: iloop
         integer, intent(out) :: nev_calc
-        integer :: isector,i
-        integer :: ind(nsector*nev)
+        integer :: isector,i,nbasis_loc
+        real(dp), pointer :: eigvec(:,:)
+
+        real(dp) :: eigval(nev), eigval_all(nev*nsector)
         real(dp) :: pev(nev*nsector)
+        integer :: ind(nsector*nev)
 
         call timer('ed_solve',1)
 
         do isector=1,nsector
-            call prepare_basis_for_sector(isector)
-            call re_alloc(eigvec,1,nbasis_loc,1,nev,"eigvec","ed_solve", &
+            if (node.eq.0) then
+                write(*,*) "ed_solver: iloop = ",iloop," , isector = ",isector
+            endif
+            call prepare_basis_for_sector(isector,nbasis_loc)
+            call re_alloc(eigvec,1,nbasis_loc,1,nev,name="eigvec",routine="ed_solve", &
                          copy=.false.,shrink=.true.)
 
-            call diag(isector)
+            call diag(isector,nbasis_loc,eigval,eigvec)
 
             do i=1,nev
                 eigval_all((isector-1)*nev+i) = eigval(i)
@@ -70,16 +67,19 @@ contains
         endif
 
         call mpi_barrier(comm,ierr)
+        call de_alloc(eigvec,name="eigvec",routine="ed_solve")
         call timer('ed_solve',2)
         return
     end subroutine ed_solve
 
-    subroutine diag(isector)
+    subroutine diag(isector, nbasis_loc, eigval, eigvec)
 #ifdef DEBUG
         include 'debug.h'
 #endif
         include 'stat.h'
-        integer, intent(in) :: isector
+        integer, intent(in) :: isector, nbasis_loc
+        real(dp), intent(out) :: eigvec(nbasis_loc,nev)
+        real(dp), intent(out) :: eigval(nev)
 
         integer  maxnloc,maxnev,maxncv,ldv
         parameter  (maxnloc=3500000,maxnev=40,maxncv=60,ldv=maxnloc)

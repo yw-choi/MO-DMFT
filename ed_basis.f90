@@ -12,7 +12,6 @@ module ed_basis
     integer, pointer :: nbasis_up(:)
     integer, pointer :: nbasis_down(:)
     integer, pointer :: nbasis(:)       
-    integer :: nbasis_loc ! number of basis in the sector local to the node.
 
     ! For up,down basis, 4-bit integer is sufficient,
     ! because the maximum number of sites will not be more than 31.
@@ -29,6 +28,10 @@ contains
 
     subroutine ed_basis_init
         integer :: i, nd
+        
+        if (node.eq.0) then
+            write(6,"(A)") "ed_basis: basis initiailization"
+        endif
 
         call re_alloc(nlocals,0,Nodes-1,name="nlocals",routine="ed_hamiltonian_init")
         call re_alloc(offsets,0,Nodes-1,name="offsets",routine="ed_hamiltonian_init")
@@ -57,8 +60,9 @@ contains
         endif
     end subroutine ed_basis_init
 
-    subroutine prepare_basis_for_sector(isec)
+    subroutine prepare_basis_for_sector(isec,nbasis_loc)
         include 'mpif.h'
+        integer :: nbasis_loc ! number of basis in the sector local to the node.
         integer, intent(in) :: isec
         integer :: nam, i
         isector = isec
@@ -153,7 +157,8 @@ contains
     end function get_basis_idx
 
 #ifdef DEBUG
-    subroutine dump_basis
+    subroutine dump_basis(nbasis_loc)
+        integer :: nbasis_loc
         integer :: i,iunit,j
         integer(kind=kind_basis) :: basis
         character(len=100) :: fname

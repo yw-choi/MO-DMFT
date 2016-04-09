@@ -55,10 +55,8 @@ contains
         enddo
 
         if (Node.eq.0) then
-            write(6,*) " ************************ "
-            write(6,*) "     IMPURITY LEVELS      "
-            write(6,*) " ************************ "
 
+            write(6,*) "ed_hamiltonian: initial impurity levels"
             do i = 1, Norb
                 write(6,'(i2,3x,e)') i, ef(i)
             enddo
@@ -189,8 +187,8 @@ contains
     end subroutine multiply_H
 
 #ifdef DEBUG
-    subroutine dump_hamiltonian(isec)
-        integer :: ib,jb
+    subroutine dump_hamiltonian(isec,nbasis_loc)
+        integer :: ib,jb,nbasis_loc
         integer(kind=kind_basis) :: basisi, basisj
 
         real(dp), allocatable :: H(:,:), A(:), B(:)

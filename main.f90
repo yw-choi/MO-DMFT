@@ -10,7 +10,7 @@ program MO_DMFT_ED
     use ed_basis
     use ed_hamiltonian
     use ed_solver
-    ! use ed_green_ftn
+    use ed_green
     ! use ed_minimize
     ! use ed_converged
 
@@ -43,7 +43,6 @@ program MO_DMFT_ED
     call ed_hamiltonian_init
     call ed_basis_init
     call ed_set_band_structure
-    call ed_solver_init
 
     call timestamp2("DMFT LOOP START")
 
@@ -52,7 +51,7 @@ program MO_DMFT_ED
     do while(.not.converged.and.iloop<nloop)
         call ed_solve(iloop,nev_calc)
 
-        ! call ed_green_ftn
+        call ed_calc_green_ftn(nev_calc)
 
         ! call ed_delta_new
 
