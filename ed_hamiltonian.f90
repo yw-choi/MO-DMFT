@@ -85,18 +85,18 @@ contains
     end subroutine find_hk
 
     subroutine multiply_H(nglobal,nloc,A,B)
-
         real(dp), intent(in) :: A(nloc)
         integer, intent(in) :: nglobal, nloc
         real(dp), intent(out) :: B(nloc)
 
-        real(dp) :: A_all(nglobal)
+        real(dp), allocatable :: A_all(:)
         integer :: i,j,k
         integer :: ispin,jspin,iorb,jorb,ibath
         integer(kind=kind_basis) :: basis_i, basis_j
 
         real(dp) :: coeff_sum, coeff
 
+        allocate(A_all(nglobal))
         call mpi_allgatherv(A,nloc,mpi_double_precision,A_all,&
             nlocals,offsets,mpi_double_precision,comm,ierr)
 
@@ -184,5 +184,44 @@ contains
                 enddo
             enddo
         enddo iloop
+
+        deallocate(A_all)
     end subroutine multiply_H
+
+#ifdef DEBUG
+    subroutine dump_hamiltonian(isec)
+        integer :: ib,jb
+        integer(kind=kind_basis) :: basisi, basisj
+
+        real(dp), allocatable :: H(:,:), A(:), B(:)
+        integer :: isec
+
+        isector = isec
+        allocate(H(nbasis(isector),nbasis(isector)))
+        allocate(A(nbasis(isector)),B(nbasis(isector)))
+
+        do ib=1,nbasis(isector)
+            basisi = ed_basis_get(ib)
+            A(:) = 0.0_dp
+            B(:) = 0.0_dp
+
+            A(ib) = 1.0_dp
+            
+            call multiply_H(nbasis(isector),nbasis_loc,A,B)
+
+            do jb=1,nbasis(isector)
+                H(ib,jb) = B(jb)
+            enddo
+        enddo
+        
+        open(unit=77,file="hamiltonian.dump",status="replace")
+        do ib=1,nbasis(isector)
+            do jb=1,nbasis(isector)
+                write(77,"(F8.3)", advance="no") H(ib,jb)
+            enddo
+            write(77,*)
+        enddo
+        close(77)
+    end subroutine dump_hamiltonian
+#endif
 end module ed_hamiltonian

@@ -68,7 +68,7 @@ contains
         call re_alloc(vk,1,norb,1,nbath,routine='ed_read_options',name='vk')
         if (fdf_block('DMFT.Baths', bfdf)) then
             i = 1
-            do while((fdf_bline(bfdf, pline)) .and. (i .le. nbath))
+            do while( (i .le. nbath) .and. (fdf_bline(bfdf, pline)))
                 ek(Norb+i) = fdf_breals(pline,1)
                 i = i + 1
             enddo
@@ -76,7 +76,7 @@ contains
 
         if (fdf_block('DMFT.BathCouplings', bfdf)) then
             i = 1
-            do while((fdf_bline(bfdf, pline)) .and. (i .le. nbath))
+            do while( i.le.nbath .and. (fdf_bline(bfdf, pline)))
                 do j=1,norb
                     vk(j,i) = fdf_breals(pline,j)
                 enddo

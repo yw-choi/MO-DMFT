@@ -220,22 +220,6 @@ contains
         return
     end subroutine pair_exchange
 
-    subroutine dump_basis(basis)
-        integer(kind=kind_basis) :: basis
-        integer :: isite,ispin,bitidx
-        do ispin=1,2
-            do isite=1,Nsite
-                bitidx = get_bitidx(isite,ispin)
-                if (BTEST(basis,bitidx)) then
-                    write(*,"(I1)",advance="no") 1
-                else
-                    write(*,"(I1)",advance="no") 0
-                endif
-            enddo
-        enddo
-        write(*,*) 
-    end subroutine
-
     subroutine number_op(basis_in,isite,ispin,basis_out,sgn)
         integer(kind=kind_basis), intent(in) :: basis_in
         integer, intent(in) :: isite,ispin

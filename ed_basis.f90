@@ -154,14 +154,24 @@ contains
 
 #ifdef DEBUG
     subroutine dump_basis
-        integer :: i,iunit
+        integer :: i,iunit,j
+        integer(kind=kind_basis) :: basis
         character(len=100) :: fname
 
         call io_assign(iunit)
         write(fname,"(A,I1)") "basis.node.",node
         open(unit=iunit,file=fname,status="replace")
         do i=1,nbasis_loc
-            write(iunit,"(I5,B)") i,ed_basis_get(offsets(node)+i)
+            write(iunit,"(I10,3x)",advance="no") i
+            basis = ed_basis_get(offsets(node)+i)
+            do j=1,2*Nsite
+                if (BTEST(basis,j-1)) then
+                    write(iunit,"(I1)",advance="no") 1
+                else
+                    write(iunit,"(I1)",advance="no") 0
+                endif
+            enddo
+            write(iunit,*)
         enddo
         close(iunit)
     end subroutine dump_basis
