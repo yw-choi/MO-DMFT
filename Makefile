@@ -9,7 +9,7 @@ default: main
 include arch.make
 
 # DMFT_OBJS = ed_operators.o
-DMFT_OBJS = ed_solver.o ed_config.o ed_hamiltonian.o ed_utils.o ed_basis.o ed_operators.o
+DMFT_OBJS = fft.o frprmn.o ed_io.o ed_solver.o ed_config.o ed_hamiltonian.o ed_utils.o ed_basis.o ed_operators.o func.o
 
 MOD_OBJS = alloc.o memory.o memoryinfo.o sys.o parallel_params.o precision.o timer.o timestamp2.o ionew.o
 OBJS = bsd.o main.o $(DMFT_OBJS)
@@ -30,7 +30,7 @@ main.o ed_config.o: $(FDF)
 
 main.o: parallel_params.o ed_config.o ed_hamiltonian.o ed_solver.o ionew.o
 alloc.o: parallel_params.o precision.o sys.o ionew.o
-ed_solver.o: ed_utils.o ed_hamiltonian.o
+ed_solver.o: ed_utils.o ed_hamiltonian.o ed_io.o
 ed_hamiltonian.o: ed_utils.o ed_basis.o ed_operators.o
 ed_basis.o: alloc.o
 memory.o: memoryinfo.o 

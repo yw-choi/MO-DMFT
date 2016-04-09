@@ -7,6 +7,7 @@ module ed_solver
     use parallel_params
     use sys
     use ed_utils
+    use ed_io
     use alloc
 
     implicit none
@@ -24,9 +25,13 @@ contains
 
     end subroutine ed_solver_init
 
-    subroutine ed_solve(iloop)
+    subroutine ed_solve(iloop,nev_calc)
         integer, intent(in) :: iloop
+        integer, intent(out) :: nev_calc
         integer :: isector,i
+        integer :: ind(nsector*nev)
+        real(dp) :: pev(nev*nsector)
+
         call timer('ed_solve',1)
 
         do isector=1,nsector
@@ -38,10 +43,35 @@ contains
 
             do i=1,nev
                 eigval_all((isector-1)*nev+i) = eigval(i)
+                call export_eigvec(isector,i,node,nbasis_loc,nev,eigvec(:,i))
             enddo
         enddo
 
+        call sort(nev*nsector,eigval_all,ind)
+        call boltzmann_factor(eigval_all,nev*nsector,beta,pev)
+
+        nev_calc = 0
+
+        do i = 1, nev
+            if(pev(ind(i)).gt.0.001D0) nev_calc = nev_calc + 1
+        enddo
+     
+        if(Node.eq.0) then
+            write(6,'(i3,2x,a)') nev_calc, &
+                "levels will be considered( p > 1/1000 )"
+            write(6,*) "       Energy               probability" 
+            do i = 1, nev_calc
+                write(6,*) eigval_all(ind(i)), pev(ind(i))
+            enddo
+        endif
+
+        if(node.eq.0)  then
+            call export_eigval(nev_calc,eigval_all,pev,ind)
+        endif
+
+        call mpi_barrier(comm,ierr)
         call timer('ed_solve',2)
+        return
     end subroutine ed_solve
 
     subroutine diag(isector)

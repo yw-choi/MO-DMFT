@@ -3,7 +3,6 @@ module ed_utils
     implicit none
 
 contains
-
     
     integer function ifact(n)
 
