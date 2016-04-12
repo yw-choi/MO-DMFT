@@ -28,7 +28,6 @@ program MO_DMFT_ED
     call MPI_Comm_rank(comm,Node,ierr)
     call fdf_init('input.fdf', 'fdf.out')
     call io_setup
-    call alloc_report( level=4, file='DMFT.alloc', threshold=0.0_dp, printNow=.false. )
 
     if (node.eq.0) then
         write(6,*) "Number of processors = ", nodes
@@ -67,7 +66,6 @@ program MO_DMFT_ED
     
     ! @TODO post-processing
 
-    call alloc_report( printNow=.true. )
     call timestamp2("DMFT PART END")
     call timer('DMFT',2)
     call timer('all',3)

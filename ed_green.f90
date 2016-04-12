@@ -11,10 +11,10 @@ module ed_green
     include 'mpif.h'
 
     integer, allocatable :: nlocals_w(:), offsets_w(:)
-    real(dp), pointer :: omega(:)
+    real(dp), allocatable :: omega(:)
     integer :: nwloc
 
-    complex(dp), pointer :: Gr(:,:)
+    complex(dp), allocatable :: Gr(:,:)
 
     integer, parameter :: pi = acos(-1.0_dp)
 contains
@@ -35,20 +35,20 @@ contains
             offsets_w(i) = offsets_w(i-1) + nlocals_w(i-1)
         enddo
 
-        call re_alloc(omega,1,nwloc,'omega','ed_green_init')
-       if(node.lt.namw) then
-          ishift = node*nwloc
-          do i = 1, nwloc  ! parallelization over frequecies
-             omega(i) = (2.D0*float(ishift+i-1)+1)*pi/beta
-          enddo
+        allocate(omega(1:nwloc))
+        if(node.lt.namw) then
+            ishift = node*nwloc
+            do i = 1, nwloc  ! parallelization over frequecies
+                omega(i) = (2.D0*float(ishift+i-1)+1)*pi/beta
+            enddo
         else
-          ishift = namw+nodes*nwloc
-          do i = 1, nwloc  ! parallelization over frequecies
-             omega(i) = (2.D0*float(ishift+i-1)+1)*pi/beta
-          enddo
+            ishift = namw+nodes*nwloc
+            do i = 1, nwloc  ! parallelization over frequecies
+                omega(i) = (2.D0*float(ishift+i-1)+1)*pi/beta
+            enddo
         endif
         
-        call re_alloc(Gr,1,Norb,1,nwloc,'Gr','ed_calc_green_ftn')
+        allocate(Gr(1:Norb,1:nwloc))
     end subroutine ed_green_init
 
     subroutine ed_calc_green_ftn(nev_calc)
@@ -85,7 +85,7 @@ contains
             isector = (ind(iev)-1)/nev+1
             ilevel = mod(ind(iev)-1,nev)+1
 
-            call prepare_basis_for_sector(isector,nloc)    
+            !call prepare_basis_for_sector(isector,nloc)    
 
             ! @TODO import eigenvector
 

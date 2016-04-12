@@ -12,7 +12,7 @@ include arch.make
 DMFT_OBJS = fft.o frprmn.o ed_io.o ed_solver.o ed_config.o ed_hamiltonian.o ed_utils.o ed_basis.o ed_operators.o func.o \
 			ed_green.o
 
-MOD_OBJS = alloc.o memory.o memoryinfo.o sys.o parallel_params.o precision.o timer.o timestamp2.o ionew.o 
+MOD_OBJS = sys.o parallel_params.o precision.o timer.o timestamp2.o ionew.o 
 OBJS = bsd.o main.o $(DMFT_OBJS)
 
 COM_OBJS=$(OBJS) $(SYSOBJ)
@@ -30,11 +30,8 @@ $(FDF):
 main.o ed_config.o: $(FDF)
 
 main.o: parallel_params.o ed_config.o ed_hamiltonian.o ed_solver.o ionew.o ed_green.o
-alloc.o: parallel_params.o precision.o sys.o ionew.o
 ed_solver.o: ed_utils.o ed_hamiltonian.o ed_io.o
 ed_hamiltonian.o: ed_utils.o ed_basis.o ed_operators.o
-ed_basis.o: alloc.o
-memory.o: memoryinfo.o 
 main: $(FDF) $(ALL_OBJS)
 	$(FC) -o main.x $(LDFLAGS) $(ALL_OBJS) $(FDF) $(LIBS) 
 #

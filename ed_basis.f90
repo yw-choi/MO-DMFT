@@ -1,10 +1,8 @@
 module ed_basis
-    use ed_config
-    use parallel_params
-    use ed_utils
-    use alloc
+    use ed_config, only: nsite, kind_basis
+    use parallel_params, only: nodes, node,comm,ierr
+    use ed_utils, only: icom
     use precision
-    use ionew
     
     implicit none
 
@@ -17,61 +15,52 @@ module ed_basis
 
         ! For up,down basis, 4-bit integer is sufficient,
         ! because the maximum number of sites will not be more than 31.
-        integer, pointer :: up(:)
-        integer, pointer :: down(:)
+        integer, allocatable :: up(:)
+        integer, allocatable :: down(:)
 
-        integer, pointer :: idx_up(:)
-        integer, pointer :: idx_down(:)
+        integer, allocatable :: idx_up(:)
+        integer, allocatable :: idx_down(:)
 
         integer, allocatable :: nlocals(:)
         integer, allocatable :: offsets(:)
     end type basis_t
 
-    integer, private :: isector
-
     public
 contains
 
-    subroutine prepare_basis( ne_up, ne_down, basis )
+    type(basis_t) function generate_basis( ne_up, ne_down ) result(basis)
         include 'mpif.h'
+
         integer, intent(in) :: ne_up, ne_down
-        type(basis_t), intent(out) :: basis
 
-        integer :: nam, i
-
-        basis%nbasis_up   = icom(Nsite,ne_up)
-        basis%nbasis_down = icom(Nsite,ne_down)
-        basis%nbasis      = basis%nbasis_up * basis%nbasis_down
-
-        basis%nbasis_loc  = basis%nbasis/nodes
-        nam = mod(basis%nbasis,nodes)
-        if (node.lt.nam) basis%nbasis_loc = basis%nbasis_loc + 1
-
-        call mpi_allgather(nbasis%nbasis_loc,1,mpi_integer,basis(0),1,mpi_integer,comm,ierr)
-
-        offsets(0) = 0 
-        do i = 1, nodes-1
-            offsets(i) = offsets(i-1) + nlocals(i-1)
-        enddo
-
-        call re_alloc(basis_up,1,nbasis_up(isector),'basis_up','prepare_basis_for_sector')
-        call re_alloc(basis_down,1,nbasis_down(isector),'basis_down','prepare_basis_for_sector')
-        call generate_basis(nup(isector),nelec(isector)-nup(isector),nbasis_up(isector),&
-                            nbasis_down(isector),basis_up,basis_down,basis_up_idx,basis_down_idx)
-    end subroutine prepare_basis_for_sector
-
-    subroutine generate_basis(neup,nedown,nbup,nbdown,b_up,b_down,bidx_up,bidx_down)
-        integer, intent(in) :: neup, nedown, nbup, nbdown
-        integer, pointer, intent(out) :: b_up(:), b_down(:), bidx_up(:), bidx_down(:)
-
-        integer :: ispin, i, j
+        ! local variables
+        integer :: ispin, i, j, nam
         integer :: minrange, maxrange, counts, nbit
         integer :: nud(2)
 
-        nud(1) = neup
-        nud(2) = nedown
+        basis%nup   = icom(Nsite,ne_up)
+        basis%ndown = icom(Nsite,ne_down)
+        basis%ntot  = basis%nup * basis%ndown
+
+        basis%nloc  = basis%ntot/nodes
+        nam = mod(basis%ntot,nodes)
+        if (node.lt.nam) basis%nloc = basis%nloc + 1
+
+        allocate(basis%nlocals(0:nodes-1),basis%offsets(0:nodes-1))
+        call mpi_allgather(basis%nloc,1,mpi_integer,basis%nlocals(0),1,mpi_integer,comm,ierr)
+
+        basis%offsets(0) = 0 
+        do i = 1, nodes-1
+            basis%offsets(i) = basis%offsets(i-1) + basis%nlocals(i-1)
+        enddo
+
+        allocate(basis%up(basis%nup), basis%down(basis%ndown))
+
+        nud(1) = ne_up
+        nud(2) = ne_down
 
         do ispin=1,2
+            ! ref : arXiv:1307.7542, Appendix A
             minrange = 0
             maxrange = 0
 
@@ -81,9 +70,9 @@ contains
             enddo
             
             if (ispin.eq.1) then
-                call re_alloc(bidx_up,minrange,maxrange,routine='generate_basis')
+                allocate(basis%idx_up(minrange:maxrange))
             else
-                call re_alloc(bidx_down,minrange,maxrange,routine='generate_basis')
+                allocate(basis%idx_down(minrange:maxrange))
             endif
             
             counts = 0
@@ -99,64 +88,44 @@ contains
                 if (nbit.eq.nud(ispin)) then
                     counts = counts + 1
                     if (ispin.eq.1) then
-                        b_up(counts) = i
-                        bidx_up(i) = counts
+                        basis%up(counts) = i
+                        basis%idx_up(i) = counts
                     else
-                        b_down(counts) = i
-                        bidx_down(i) = counts
+                        basis%down(counts) = i
+                        basis%idx_down(i) = counts
                     endif
                 endif
             enddo
         enddo
+    end function generate_basis
 
-    end subroutine generate_basis
+    ! ref : arXiv:1307.7542 eq (6)
+    integer(kind=kind_basis) function ed_basis_get(basis,idx) 
+        type(basis_t), intent(in) :: basis
+        integer, intent(in) :: idx
 
-    integer(kind=kind_basis) function ed_basis_get(ib_g)
-        integer :: ib_g
+        ! local variables
         integer :: iup, idown
 
-        iup = mod(ib_g-1,nbasis_up(isector))+1
-        idown = (ib_g-1)/nbasis_up(isector)+1
+        iup = mod(idx-1,basis%nup)+1
+        idown = (idx-1)/basis%ndown+1
 
-        ed_basis_get=basis_up(iup)+2**(Nsite)*basis_down(idown)
+        ed_basis_get = basis%up(iup)+2**(Nsite)*basis%down(idown)
     end function ed_basis_get
 
-    integer function get_basis_idx(basis)
-        integer(kind=kind_basis) :: basis
-        integer :: bup, bdown
+    ! ref : arXiv:1307.7542 eq (8)
+    integer function ed_basis_idx(basis, basis_i)
+        type(basis_t), intent(in) :: basis
+        integer(kind=kind_basis) :: basis_i
 
-        bup = mod(basis,2**Nsite)
-        bdown = basis/(2**Nsite)
+        ! local variables
+        integer :: basis_i_up, basis_i_down
 
-        get_basis_idx = basis_up_idx(bup) + &
-                        (basis_down_idx(bdown)-1)*nbasis_up(isector)
+        basis_i_up = mod(basis_i,2**Nsite)
+        basis_i_down = basis_i/(2**Nsite)
 
-    end function get_basis_idx
-
-#ifdef DEBUG
-    subroutine dump_basis(nbasis_loc)
-        integer :: nbasis_loc
-        integer :: i,iunit,j
-        integer(kind=kind_basis) :: basis
-        character(len=100) :: fname
-
-        call io_assign(iunit)
-        write(fname,"(A,I1)") "basis.node.",node
-        open(unit=iunit,file=fname,status="replace")
-        do i=1,nbasis_loc
-            write(iunit,"(I10,3x)",advance="no") i
-            basis = ed_basis_get(offsets(node)+i)
-            do j=1,2*Nsite
-                if (BTEST(basis,j-1)) then
-                    write(iunit,"(I1)",advance="no") 1
-                else
-                    write(iunit,"(I1)",advance="no") 0
-                endif
-            enddo
-            write(iunit,*)
-        enddo
-        close(iunit)
-    end subroutine dump_basis
-#endif
+        ed_basis_idx = (basis%idx_down(basis_i_down)-1)*basis%nup + &
+                             basis%idx_up(basis_i_up)
+    end function ed_basis_idx
 
 end module ed_basis

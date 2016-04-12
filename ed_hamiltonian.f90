@@ -4,14 +4,13 @@ module ed_hamiltonian
     use ed_config
     use parallel_params
     use ed_utils
-    use alloc
     use ed_basis
 
     implicit none
     include 'mpif.h'
 
-    complex(dp), pointer :: Hk(:,:,:)
-    real(dp), pointer :: ef(:)
+    complex(dp), allocatable :: Hk(:,:,:)
+    real(dp), allocatable :: ef(:)
 
     ! current sector of the hamiltonain.
     integer, private :: isector
@@ -21,8 +20,9 @@ contains
 
     ! Hamiltonian related initialization before entering DMFT loop
     subroutine ed_hamiltonian_init
-        call re_alloc(Hk,1,norb,1,norb,1,nq,name="Hk",routine="ed_hamiltonian_init")
-        call re_alloc(ef,1,norb,name="ef",routine="ed_hamiltonian_init")
+
+        allocate(Hk(norb,norb,nq),ef(norb))
+
     end subroutine ed_hamiltonian_init
 
     subroutine ed_set_band_structure
@@ -84,10 +84,10 @@ contains
         enddo
     end subroutine find_hk
 
-    subroutine multiply_H(nglobal,nloc,A,B)
-        real(dp), intent(in) :: A(nloc)
-        integer, intent(in) :: nglobal, nloc
-        real(dp), intent(out) :: B(nloc)
+    subroutine multiply_H(basis,A,B)
+        type(basis_t), intent(in) :: basis
+        real(dp), intent(in) :: A(basis%nloc)
+        real(dp), intent(out) :: B(basis%nloc)
 
         real(dp), allocatable :: A_all(:)
         integer :: i,j,k
@@ -96,14 +96,14 @@ contains
 
         real(dp) :: coeff_sum, coeff
 
-        allocate(A_all(nglobal))
-        call mpi_allgatherv(A,nloc,mpi_double_precision,A_all,&
-            nlocals,offsets,mpi_double_precision,comm,ierr)
+        allocate(A_all(basis%ntot))
+        call mpi_allgatherv(A,basis%nloc,mpi_double_precision,A_all,&
+            basis%nlocals,basis%offsets,mpi_double_precision,comm,ierr)
 
-        B(1:nloc) = 0.0_dp
-        iloop: do i=1,nloc
+        B(1:basis%nloc) = 0.0_dp
+        iloop: do i=1,basis%nloc
             ! i-th basis state
-            basis_i = ed_basis_get(offsets(node)+i)
+            basis_i = ed_basis_get(basis,basis%offsets(node)+i)
             
             ! [diagonal elements]
             ! B(i) = H(i,i)*A(i)
@@ -136,7 +136,7 @@ contains
                 enddo
             enddo
 
-            B(i) = coeff_sum*A_all(offsets(node)+i)
+            B(i) = coeff_sum*A_all(basis%offsets(node)+i)
 
             ! [off-diagonal elements]
             ! B(i) = sum_i H(i,j)*A(j)
@@ -146,12 +146,12 @@ contains
                     do ibath=1,Nbath
                         call hybridization1(basis_i,iorb,ibath,ispin,basis_j,coeff)
                         if (basis_j.ne.0) then
-                            j = get_basis_idx(basis_j) 
+                            j = ed_basis_idx(basis,basis_j) 
                             B(i) = B(i) + coeff*A_all(j)
                         endif
                         call hybridization2(basis_i,iorb,ibath,ispin,basis_j,coeff)
                         if (basis_j.ne.0) then
-                            j = get_basis_idx(basis_j) 
+                            j = ed_basis_idx(basis,basis_j) 
                             B(i) = B(i) + coeff*A_all(j)
                         endif
                     enddo
@@ -165,7 +165,7 @@ contains
                     endif
                     call spin_flip(basis_i,iorb,jorb,basis_j,coeff)
                     if (basis_j.ne.0) then
-                        j = get_basis_idx(basis_j) 
+                        j = ed_basis_idx(basis,basis_j) 
                         B(i) = B(i) + coeff*A_all(j)
                     endif
                 enddo
@@ -178,7 +178,7 @@ contains
                     endif
                     call pair_exchange(basis_i,iorb,jorb,basis_j,coeff)
                     if (basis_j.ne.0) then
-                        j = get_basis_idx(basis_j) 
+                        j = ed_basis_idx(basis,basis_j) 
                         B(i) = B(i) + coeff*A_all(j)
                     endif
                 enddo
@@ -188,40 +188,4 @@ contains
         deallocate(A_all)
     end subroutine multiply_H
 
-#ifdef DEBUG
-    subroutine dump_hamiltonian(isec,nbasis_loc)
-        integer :: ib,jb,nbasis_loc
-        integer(kind=kind_basis) :: basisi, basisj
-
-        real(dp), allocatable :: H(:,:), A(:), B(:)
-        integer :: isec
-
-        isector = isec
-        allocate(H(nbasis(isector),nbasis(isector)))
-        allocate(A(nbasis(isector)),B(nbasis(isector)))
-
-        do ib=1,nbasis(isector)
-            basisi = ed_basis_get(ib)
-            A(:) = 0.0_dp
-            B(:) = 0.0_dp
-
-            A(ib) = 1.0_dp
-            
-            call multiply_H(nbasis(isector),nbasis_loc,A,B)
-
-            do jb=1,nbasis(isector)
-                H(ib,jb) = B(jb)
-            enddo
-        enddo
-        
-        open(unit=77,file="hamiltonian.dump",status="replace")
-        do ib=1,nbasis(isector)
-            do jb=1,nbasis(isector)
-                write(77,"(F8.3)", advance="no") H(ib,jb)
-            enddo
-            write(77,*)
-        enddo
-        close(77)
-    end subroutine dump_hamiltonian
-#endif
 end module ed_hamiltonian

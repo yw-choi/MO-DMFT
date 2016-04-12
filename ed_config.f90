@@ -1,7 +1,6 @@
 module ed_config
     use precision
     use fdf
-    use alloc
 
     implicit none
     integer, parameter :: kind_basis = 4
@@ -12,8 +11,8 @@ module ed_config
     integer :: Nsite
 
     integer :: Nsector
-    integer, pointer :: Nelec(:)
-    integer, pointer :: Nup(:)
+    integer, allocatable :: Nelec(:)
+    integer, allocatable :: Nup(:)
 
     ! physical parameters
     real(dp) :: U
@@ -21,8 +20,8 @@ module ed_config
     real(dp) :: rMu
     real(dp) :: beta
 
-    real(dp), pointer :: ek(:)
-    real(dp), pointer :: vk(:,:)
+    real(dp), allocatable :: ek(:)
+    real(dp), allocatable :: vk(:,:)
     
     ! calculation parameters
     real(dp) :: small
@@ -47,8 +46,7 @@ contains
         Nsite = Norb+Nbath
 
         Nsector = fdf_integer("DMFT.Nsectors",2)
-        call re_alloc(nelec,1,nsector,routine='ed_read_options',name='nelec')
-        call re_alloc(nup,1,nsector,routine='ed_read_options',name='nup')
+        allocate(nelec(1:nsector),nup(1:nsector))
 
         if (fdf_block('DMFT.Sectors', bfdf)) then
             i = 1
@@ -64,8 +62,7 @@ contains
         rMu = fdf_double("DMFT.Mu",1.0_dp)
         beta = fdf_double("DMFT.beta", 100.0_dp)
 
-        call re_alloc(ek,1,nsite,routine='ed_read_options',name='ek')
-        call re_alloc(vk,1,norb,1,nbath,routine='ed_read_options',name='vk')
+        allocate(ek(1:nsite),vk(1:norb,1:nbath))
         if (fdf_block('DMFT.Baths', bfdf)) then
             i = 1
             do while( (i .le. nbath) .and. (fdf_bline(bfdf, pline)))

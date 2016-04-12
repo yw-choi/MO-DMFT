@@ -8,7 +8,6 @@ module ed_solver
     use sys
     use ed_utils
     use ed_io
-    use alloc
     implicit none
 
     public
@@ -17,29 +16,37 @@ contains
     subroutine ed_solve(iloop,nev_calc)
         integer, intent(in) :: iloop
         integer, intent(out) :: nev_calc
-        integer :: isector,i,nbasis_loc
-        real(dp), pointer :: eigvec(:,:)
+
+        integer :: isector, i, ne_up, ne_down
+        real(dp), allocatable :: eigvec(:,:)
 
         real(dp) :: eigval(nev), eigval_all(nev*nsector)
         real(dp) :: pev(nev*nsector)
         integer :: ind(nsector*nev)
+        type(basis_t) :: basis
+
 
         call timer('ed_solve',1)
         do isector=1,nsector
             if (node.eq.0) then
                 write(*,*) "ed_solver: iloop = ",iloop," , isector = ",isector
             endif
-            call prepare_basis_for_sector(isector,nbasis_loc)
 
-            call re_alloc(eigvec,1,nbasis_loc,1,nev,name="eigvec",routine="ed_solve", &
-                copy=.false., shrink=.true.)
+            ne_up = nup(isector)
+            ne_down = nelec(isector) - nup(isector)
 
-            call diag(isector,nbasis_loc,eigval,eigvec)
+            basis = generate_basis( ne_up, ne_down )
+
+            allocate(eigvec(basis%nloc,nev))
+
+            call diag(basis,eigval,eigvec)
 
             do i=1,nev
                 eigval_all((isector-1)*nev+i) = eigval(i)
-                call export_eigvec(isector,i,node,nbasis_loc,nev,eigvec(:,i))
+                call export_eigvec(isector,i,node,basis%nloc,nev,eigvec(:,i))
             enddo
+
+            deallocate(eigvec)
         enddo
 
         call sort(nev*nsector,eigval_all,ind)
@@ -65,18 +72,17 @@ contains
         endif
 
         call mpi_barrier(comm,ierr)
-        call de_alloc(eigvec,name="eigvec",routine="ed_solve")
         call timer('ed_solve',2)
         return
     end subroutine ed_solve
 
-    subroutine diag(isector, nbasis_loc, eigval, eigvec)
+    subroutine diag(basis, eigval, eigvec)
 #ifdef DEBUG
         include 'debug.h'
 #endif
         include 'stat.h'
-        integer, intent(in) :: isector, nbasis_loc
-        real(dp), intent(out) :: eigvec(nbasis_loc,nev)
+        type(basis_t), intent(in) :: basis
+        real(dp), intent(out) :: eigvec(basis%nloc,nev)
         real(dp), intent(out) :: eigval(nev)
 
         integer  maxnloc,maxnev,maxncv,ldv
@@ -110,10 +116,10 @@ contains
         ido = 0
 
         do
-            call pdsaupd( comm, ido, bmat, nbasis_loc, which, nev, tol, resid, &
+            call pdsaupd( comm, ido, bmat, basis%nloc, which, nev, tol, resid, &
                 ncv, v, ldv, iparam, ipntr, workd, workl, lworkl, info )
             if (ido .eq. -1 .or. ido .eq. 1) then
-                call multiply_H(nbasis(isector),nbasis_loc,workd(ipntr(1)),workd(ipntr(2)))
+                call multiply_H(basis,workd(ipntr(1)),workd(ipntr(2)))
             else
                 exit
             endif
@@ -126,7 +132,7 @@ contains
             endif
         else
             call pdseupd(comm,.true.,'All', select,d,v,ldv,sigma, &
-                bmat, nbasis_loc, which, nev, tol, resid, ncv, v, ldv, &
+                bmat, basis%nloc, which, nev, tol, resid, ncv, v, ldv, &
                 iparam, ipntr, workd, workl, lworkl, ierr )
             if ( ierr .ne. 0) then
                 if ( node .eq. 0 ) then
@@ -136,9 +142,9 @@ contains
             else
                 nconv =  iparam(5)
                 do j=1, nconv
-                    call multiply_H(nbasis(isector),nbasis_loc,v(1:ldv,j),ax)
-                    call daxpy(nbasis_loc, -d(j,1), v(1,j), 1, ax, 1)
-                    d(j,2) = pdnorm2( comm, nbasis_loc, ax, 1 )
+                    call multiply_H(basis,v(1:ldv,j),ax)
+                    call daxpy(basis%nloc, -d(j,1), v(1,j), 1, ax, 1)
+                    d(j,2) = pdnorm2( comm, basis%nloc, ax, 1 )
                 enddo
                 call pdmout(comm, 6, nconv, 2, d, ncv, -6, &
                     'Ritz values and direct residuals')
@@ -146,7 +152,7 @@ contains
         endif
 
         do i=1,nev
-            eigvec(1:nbasis_loc,i) = v(:,i)
+            eigvec(1:basis%nloc,i) = v(:,i)
             eigval(i) = d(i,1)
         enddo
     end subroutine diag
