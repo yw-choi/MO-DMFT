@@ -51,7 +51,7 @@ program MO_DMFT_ED
     do while(.not.converged.and.iloop<nloop)
         call ed_solve(iloop,nev_calc)
 
-        ! call ed_calc_green_ftn(nev_calc)
+        call ed_calc_green_ftn(nev_calc)
 
         ! call ed_delta_new
 

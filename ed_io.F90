@@ -22,13 +22,14 @@ contains
         iunit = EIGVEC_IUNIT_BASE + node
 #ifdef DATA_PLAINTEXT
         open(unit=iunit,file=fname,status="replace")
+        write(iunit,"(I)") nloc
         write(iunit,"(F10.3)") (eigvec(i),i=1,nloc)
-        close(iunit)
 #else
         open(unit=iunit,file=fname,status="replace",form="unformatted")
+        write(iunit) nloc
         write(iunit) (eigvec(i),i=1,nloc)
-        close(iunit)
 #endif
+        close(iunit)
     end subroutine
 
     subroutine export_eigval(nev_calc,eigval_all,pev,ind)
@@ -89,6 +90,42 @@ contains
         close(iunit)
 
     end subroutine import_eigval
+
+    subroutine import_eigvec( isector, iev, node, nloc, eigvec )
+        integer, intent(in) :: isector, iev, node
+        integer, intent(out) :: nloc
+        real(dp), allocatable, intent(out) :: eigvec(:)
+
+        ! local variables
+        logical :: file_exist
+        integer :: iunit, i
+        character(len=150) :: fname
+
+        call eigvec_filename(isector,iev,node,fname)
+        iunit = EIGVEC_IUNIT_BASE + node
+
+        inquire(file=fname,exist=file_exist)
+
+        if (.not.file_exist) then
+            write(6,*) "import_eigvec: File not found, ", fname
+            call die
+            return
+        endif
+        
+#ifdef DATA_PLAINTEXT
+        open(unit=iunit,file=fname,status="old",form="formatted")
+        read(iunit,"(I)") nloc
+        allocate(eigvec(nloc))
+        read(iunit,"(F10.3)") (eigvec(i),i=1,nloc)
+#else
+        open(unit=iunit,file=fname,status="old",form="unformatted")
+        read(iunit) nloc
+        allocate(eigvec(nloc))
+        read(iunit) (eigvec(i),i=1,nloc)
+#endif
+        close(iunit)
+
+    end subroutine import_eigvec
 
     subroutine eigvec_filename(isector,iev,inode,fname)
         integer, intent(in) :: isector, iev, inode

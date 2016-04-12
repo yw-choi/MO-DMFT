@@ -13,6 +13,9 @@ module ed_basis
         integer :: nup
         integer :: ndown
 
+        integer :: ne_up
+        integer :: ne_down
+
         ! For up,down basis, 4-bit integer is sufficient,
         ! because the maximum number of sites will not be more than 31.
         integer, allocatable :: up(:)
@@ -37,6 +40,9 @@ contains
         integer :: ispin, i, j, nam
         integer :: minrange, maxrange, counts, nbit
         integer :: nud(2)
+
+        basis%ne_up = ne_up
+        basis%ne_down = ne_down
 
         basis%nup   = icom(Nsite,ne_up)
         basis%ndown = icom(Nsite,ne_down)
@@ -100,12 +106,15 @@ contains
     end function generate_basis
 
     ! ref : arXiv:1307.7542 eq (6)
-    integer(kind=kind_basis) function ed_basis_get(basis,idx) 
+    integer(kind=kind_basis) function ed_basis_get(basis,idx_loc) 
         type(basis_t), intent(in) :: basis
-        integer, intent(in) :: idx
+        integer, intent(in) :: idx_loc
 
         ! local variables
-        integer :: iup, idown
+        integer :: iup, idown, idx
+
+        ! local idx to global idx
+        idx = idx_loc + basis%offsets(node)
 
         iup = mod(idx-1,basis%nup)+1
         idown = (idx-1)/basis%ndown+1

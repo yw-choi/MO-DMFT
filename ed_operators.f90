@@ -1,9 +1,63 @@
 module ed_operators
     use ed_config
+    use ed_basis
 
     implicit none
 
 contains
+    subroutine apply_c(basis,vec,pm,iorb,ispin,basis_out,vec_out)
+        include 'mpif.h'
+
+        type(basis_t), intent(in) :: basis
+        real(dp), intent(in) :: vec(basis%nloc)
+        integer, intent(in) :: pm, iorb, ispin
+        type(basis_t), intent(out) :: basis_out
+        real(dp), allocatable, intent(out) :: vec_out(:)
+
+        real(dp), allocatable :: vec_all(:)
+        integer(kind=kind_basis) :: basis_i, basis_j
+        integer :: i,j,sgn
+
+        if (ispin.eq.1) then
+            if (pm.eq.1) then
+                basis_out = generate_basis( basis%ne_up+1, basis%ne_down )
+            else
+                basis_out = generate_basis( basis%ne_up-1, basis%ne_down )
+            endif
+        else
+            if (pm.eq.1) then
+                basis_out = generate_basis( basis%ne_up, basis%ne_down+1 )
+            else
+                basis_out = generate_basis( basis%ne_up, basis%ne_down-1 )
+            endif
+        endif
+
+        allocate(vec_out(basis_out%nloc))
+        vec_out = 0.0_dp
+
+        allocate(vec_all(basis%ntot))
+        call mpi_allgatherv(vec,basis%nloc,mpi_double_precision,vec_all,&
+            basis%nlocals,basis%offsets,mpi_double_precision,comm,ierr)
+
+        do i=1,basis_out%nloc
+            basis_i = ed_basis_get(basis_out,i)
+            if (pm.eq.1) then
+                call destruction_op(basis_i,iorb,ispin,basis_j,sgn)
+            else
+                call creation_op(basis_i,iorb,ispin,basis_j,sgn)
+            endif
+
+            if (sgn.eq.0) then
+                cycle
+            endif
+
+            j = ed_basis_idx(basis, basis_j)
+            vec_out(i) = vec_out(i) + vec_all(j)*sgn
+        enddo
+        deallocate(vec_all)
+
+    end subroutine apply_c
+
     integer function get_bitidx(isite,ispin)
         integer :: isite, ispin
         get_bitidx = (ispin-1)*Nsite + isite-1

@@ -84,6 +84,7 @@ contains
         enddo
     end subroutine find_hk
 
+    ! B = H*A 
     subroutine multiply_H(basis,A,B)
         type(basis_t), intent(in) :: basis
         real(dp), intent(in) :: A(basis%nloc)
@@ -103,7 +104,7 @@ contains
         B(1:basis%nloc) = 0.0_dp
         iloop: do i=1,basis%nloc
             ! i-th basis state
-            basis_i = ed_basis_get(basis,basis%offsets(node)+i)
+            basis_i = ed_basis_get(basis,i)
             
             ! [diagonal elements]
             ! B(i) = H(i,i)*A(i)

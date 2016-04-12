@@ -4,17 +4,19 @@ module ed_green
     use ed_io
     use ed_config
     use ed_basis
-    use alloc
+    use ed_operators
+    use ed_lanczos
+    use ed_utils
+    use sys
 
     implicit none
-
-    include 'mpif.h'
 
     integer, allocatable :: nlocals_w(:), offsets_w(:)
     real(dp), allocatable :: omega(:)
     integer :: nwloc
 
     complex(dp), allocatable :: Gr(:,:)
+    real(dp), allocatable :: nocc(:,:)
 
     integer, parameter :: pi = acos(-1.0_dp)
 contains
@@ -48,21 +50,19 @@ contains
             enddo
         endif
         
-        allocate(Gr(1:Norb,1:nwloc))
+        allocate(Gr(Norb,nwloc))
+        allocate(nocc(norb,2))
     end subroutine ed_green_init
 
     subroutine ed_calc_green_ftn(nev_calc)
         integer, intent(in) :: nev_calc
         
         real(dp), allocatable :: eigval(:), pev(:)
+        real(dP), allocatable :: eigvec(:)
         integer, allocatable :: ind(:)
-
-        real(dp) :: Z
-        double precision:: no_up(Norb),no_dn(Norb),no_up_tmp(Norb),&
-                           nou,nod,nocc(Norb),ap(0:Nstep),bp(0:Nstep),&
-                           an(0:Nstep),bn(0:Nstep),factor
-
-        integer :: i, isector, ilevel, nloc, iorb, iev, ispin
+        real(dp) :: Z, factor, nocc_up, nocc_down
+        integer :: i, isector, ilevel, nloc, iorb, iev, ispin, nd
+        type(basis_t) :: basis
 
         allocate(eigval(nev_calc),pev(nev_calc),ind(nev_calc))
         call import_eigval(nev_calc,eigval,pev,ind)
@@ -78,42 +78,136 @@ contains
 
         Gr(:,:) = 0.D0 
 
-        no_up(:) = 0.D0
-        no_dn(:) = 0.D0
+        nocc(:,:) = 0.D0
 
         nevloop: do iev=1,nev_calc
             isector = (ind(iev)-1)/nev+1
             ilevel = mod(ind(iev)-1,nev)+1
 
-            !call prepare_basis_for_sector(isector,nloc)    
+            nd = nelec(isector)-nup(isector)
+            if (nd.eq.nup(isector)) then
+                factor=1.0_dp
+            else
+                factor=0.5_dp
+            endif
 
-            ! @TODO import eigenvector
+            call import_eigvec(isector,ilevel,node,nloc,eigvec)
+            basis = generate_basis( nup(isector), nelec(isector)-nup(isector) )
 
-            do ispin=1,2
-                do iorb = 1,norb
-                    ! call calc_green_diag(nloc,eigvec,eigval(iev),pev(iev), &
-                    !                 iorb, ispin)
-                enddo
+            if (nloc.ne.basis%nloc) then
+                write(6,*) "ed_calc_green_ftn: basis dimension mismatch"
+                write(6,*) "node=",node," nloc_read=",nloc," nloc=",basis%nloc
+                call die
+                return 
+            endif
+
+            ! spin up part 
+            do iorb = 1,norb
+                call green_diag(basis,eigvec,eigval(iev),pev(iev),factor,iorb, 1)
+                call find_nocc(basis,eigvec,iorb,nocc_up,nocc_down)
+                nocc(iorb,1) = nocc(iorb,1) + nocc_up*pev(iev)*factor
+                nocc(iorb,2) = nocc(iorb,2) + nocc_down*pev(iev)*factor
             enddo
 
+            if (nd.ne.nup(isector)) then
+                ! spin down part
+                do iorb = 1,norb
+                    call green_diag(basis,eigvec,eigval(iev),pev(iev),factor,iorb, 2)
+                    call find_nocc(basis,eigvec,iorb,nocc_up,nocc_down)
+                    nocc(iorb,1) = nocc(iorb,1) + nocc_up*pev(iev)*factor
+                    nocc(iorb,2) = nocc(iorb,2) + nocc_down*pev(iev)*factor
+                enddo
+
+            endif
         enddo nevloop
 
+        if(node.eq.0) then
+           write(6,*) "ed_calc_green_ftn: particle density (up/down spin) "
+           do iorb = 1, norb
+              write(6,'(i2,3x,2e)') iorb, nocc(iorb,1), nocc(iorb,2)
+           enddo
+           write(6,'(a,2e)') "sum=", sum(nocc(:,:))
+           write(6,*)  " "
+        endif
     end subroutine ed_calc_green_ftn
 
-    ! subroutine calc_green_diag(nloc,eigvec,eigval,pev,iorb,ispin)
-    !     integer, intent(in) :: nloc, iorb, ispin
-    !     real(dp), intent(in) :: eigvec(nloc), eigval, pev
+    subroutine green_diag(basis,eigvec,eigval,pev,factor,iorb,ispin)
+        type(basis_t), intent(in) :: basis
+        integer, intent(in) :: iorb, ispin
+        real(dp), intent(in) :: eigvec(basis%nloc), eigval, pev, factor
 
+        ! local variables
+        integer :: i, j
+        type(basis_t) :: basis_out
+        real(dp), allocatable :: v(:)
+        real(dp) :: nocc_i
+        integer :: nstep_calc
+        complex(dp) :: cmplx_omega, grx
 
-    ! end subroutine green_diag
+        ! lanczos matrix elements
+        real(dp), allocatable :: a(:), b(:) 
 
-    ! subroutine lanczos(
-    !     real(dp), allocatable, intent(out) :: 
-    !    integer :: istep
+        ! One more particle at iorb,ispin
+        call apply_c(basis, eigvec, 1, iorb, ispin, basis_out, v)
+        call lanczos_iteration(basis_out, v, nstep_calc, a, b)
 
-    !    do istep=1,nstep
-            
-    !    enddo
+        nocc_i = mpi_dot_product(v,v,basis_out%nloc)
+        b(0) = 1-nocc_i
+        do i=1,nwloc
+            cmplx_omega = cmplx(eigval,omega(i))
+            grx = b(nstep_calc)/(cmplx_omega-a(nstep_calc))
+            do j = nstep_calc-1, 0, -1
+                grx = b(j)/(cmplx_omega-a(j)-grx)
+            enddo 
 
-    ! end subroutine lanczos
+            Gr(iorb,j) = Gr(iorb,j) + pev*factor*grx
+        enddo
+
+        ! One less particle at iorb,ispin
+        call apply_c(basis, eigvec, 2, iorb, ispin, basis_out, v)
+        call lanczos_iteration(basis_out, v, nstep_calc, a, b)
+
+        b(0) = nocc_i
+        do i=1,nwloc
+            cmplx_omega = cmplx(-eigval,omega(i))
+            grx = b(nstep_calc)/(cmplx_omega+a(nstep_calc))
+            do j = nstep_calc-1, 0, -1
+                grx = b(j)/(cmplx_omega+a(j)-grx)
+            enddo 
+
+            Gr(iorb,j) = Gr(iorb,j) + pev*factor*grx
+        enddo
+    end subroutine green_diag
+
+    subroutine find_nocc(basis,vec,iorb,no_up,no_dn)
+        type(basis_t), intent(in) :: basis
+        integer, intent(in) :: iorb
+        real(dp), intent(in) :: vec(basis%nloc)
+
+        real(dp), intent(out) :: no_up, no_dn
+
+        integer :: i
+        real(dp) :: ind_up(basis%nloc), ind_dn(basis%nloc)
+        real(dp) :: no_up_tmp, no_dn_tmp
+        integer(kind=kind_basis) :: basis_i
+
+        ind_up(:) = 0.D0
+        ind_dn(:) = 0.D0
+        do i = 1, basis%nloc
+            basis_i = ed_basis_get(basis,i)
+            if(BTEST(basis_i,iorb)) ind_up(i) = 1.D0
+            if(BTEST(basis_i,Nsite+iorb)) ind_dn(i) = 1.D0
+        enddo
+
+        no_up_tmp = sum(ind_up(:)*vec(:)*vec(:))
+        no_dn_tmp = sum(ind_dn(:)*vec(:)*vec(:))
+
+        call mpi_allreduce(no_up_tmp,no_up,1,mpi_double_precision,mpi_sum,&
+            comm,ierr)
+        call mpi_allreduce(no_dn_tmp,no_dn,1,mpi_double_precision,mpi_sum,&
+            comm,ierr)
+
+        return
+    end subroutine find_nocc
+
 end module ed_green
