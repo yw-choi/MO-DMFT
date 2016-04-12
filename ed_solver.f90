@@ -9,9 +9,7 @@ module ed_solver
     use ed_utils
     use ed_io
     use alloc
-
     implicit none
-
 
     public
 contains
@@ -27,14 +25,14 @@ contains
         integer :: ind(nsector*nev)
 
         call timer('ed_solve',1)
-
         do isector=1,nsector
             if (node.eq.0) then
                 write(*,*) "ed_solver: iloop = ",iloop," , isector = ",isector
             endif
             call prepare_basis_for_sector(isector,nbasis_loc)
+
             call re_alloc(eigvec,1,nbasis_loc,1,nev,name="eigvec",routine="ed_solve", &
-                         copy=.false.,shrink=.true.)
+                copy=.false., shrink=.true.)
 
             call diag(isector,nbasis_loc,eigval,eigvec)
 
@@ -98,7 +96,7 @@ contains
         ndigit = -3
         logfil = 6
         msaupd = 1
-#endif DEBUG
+#endif 
         ncv = nev*2
 
         lworkl = ncv*(ncv+8)
@@ -148,7 +146,7 @@ contains
         endif
 
         do i=1,nev
-            eigvec(:,i) = v(:,i)
+            eigvec(1:nbasis_loc,i) = v(:,i)
             eigval(i) = d(i,1)
         enddo
     end subroutine diag

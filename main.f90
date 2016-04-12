@@ -44,6 +44,8 @@ program MO_DMFT_ED
     call ed_basis_init
     call ed_set_band_structure
 
+    call ed_green_init
+
     call timestamp2("DMFT LOOP START")
 
     iloop = 0
@@ -51,7 +53,7 @@ program MO_DMFT_ED
     do while(.not.converged.and.iloop<nloop)
         call ed_solve(iloop,nev_calc)
 
-        call ed_calc_green_ftn(nev_calc)
+        ! call ed_calc_green_ftn(nev_calc)
 
         ! call ed_delta_new
 

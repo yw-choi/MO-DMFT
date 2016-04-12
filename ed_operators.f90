@@ -24,13 +24,7 @@ contains
             return
         endif
         
-        if (isite.le.Norb) then
-            ! impurity orbitals
-            coeff = ek(isite) - rMu
-        else
-            ! bath orbitals
-            coeff = ek(isite)
-        endif
+        coeff = ek(isite)
     end subroutine onsite
 
     subroutine hybridization1(basis_in,iorb,ibath,ispin,basis_out,coeff)

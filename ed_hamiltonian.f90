@@ -52,6 +52,7 @@ contains
 
         do i = 1, norb
             ef(i) = sum(real(Hk(i,i,:)))/float(Nq)
+            ek(i) = ef(i)
         enddo
 
         if (Node.eq.0) then
@@ -60,6 +61,7 @@ contains
             do i = 1, Norb
                 write(6,'(i2,3x,e)') i, ef(i)
             enddo
+
         endif
 
     end subroutine ed_set_band_structure

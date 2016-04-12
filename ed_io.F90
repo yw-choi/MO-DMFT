@@ -53,11 +53,12 @@ contains
 
     end subroutine export_eigval
 
-    subroutine import_eigval(nev_calc,eigval,pev)
+    subroutine import_eigval(nev_calc,eigval,pev,ind)
         integer, intent(in) :: nev_calc
-        real(dp), allocatable, intent(out) :: eigval(:), pev(:)
+        real(dp), intent(out) :: eigval(nev_calc), pev(nev_calc)
+        integer, intent(out) :: ind(nev_calc)
 
-        integer :: i, iunit, idx, nev_calc_read
+        integer :: i, iunit, nev_calc_read
         iunit = EIGVAL_IUNIT_BASE
 #ifdef DATA_PLAINTEXT
         open(unit=iunit,file="eigenvalues.dat",status="old",form="formatted")
@@ -72,18 +73,17 @@ contains
 #endif
         if (nev_calc_read.ne.nev_calc) then
             if (node.eq.0) then
-                write(6,*) "nev_calc mismatch."
+                write(6,*) "import_eigval: nev_calc mismatch."
             endif
             call die
             return
         endif
 
-        allocate(eigval(nev_calc),pev(nev_calc))
         do i=1,nev_calc
 #ifdef DATA_PLAINTEXT
-            read(iunit,*) idx, eigval(i), pev(i)
+            read(iunit,*) ind(i), eigval(i), pev(i)
 #else
-            read(iunit) idx, eigval(i), pev(i)
+            read(iunit) ind(i), eigval(i), pev(i)
 #endif
         enddo
         close(iunit)
