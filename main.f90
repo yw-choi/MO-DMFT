@@ -41,7 +41,6 @@ program MO_DMFT_ED
 
     call ed_read_options
     call ed_hamiltonian_init
-    call ed_basis_init
     call ed_set_band_structure
 
     call ed_green_init

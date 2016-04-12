@@ -14,7 +14,7 @@ module ed_green
     real(dp), pointer :: omega(:)
     integer :: nwloc
 
-    complex(dp), pointer :: Gr(:,:),Gr_tmp(:,:)
+    complex(dp), pointer :: Gr(:,:)
 
     integer, parameter :: pi = acos(-1.0_dp)
 contains
@@ -49,7 +49,6 @@ contains
         endif
         
         call re_alloc(Gr,1,Norb,1,nwloc,'Gr','ed_calc_green_ftn')
-        call re_alloc(Gr_tmp,1,Norb,1,nwloc,'Gr_tmp','ed_calc_green_ftn')
     end subroutine ed_green_init
 
     subroutine ed_calc_green_ftn(nev_calc)
@@ -63,7 +62,7 @@ contains
                            nou,nod,nocc(Norb),ap(0:Nstep),bp(0:Nstep),&
                            an(0:Nstep),bn(0:Nstep),factor
 
-        integer :: i, isector, ilevel, nloc, iorb, iev
+        integer :: i, isector, ilevel, nloc, iorb, iev, ispin
 
         allocate(eigval(nev_calc),pev(nev_calc),ind(nev_calc))
         call import_eigval(nev_calc,eigval,pev,ind)
@@ -78,7 +77,6 @@ contains
         enddo
 
         Gr(:,:) = 0.D0 
-        Gr_tmp(:,:) = 0.D0 
 
         no_up(:) = 0.D0
         no_dn(:) = 0.D0
@@ -91,14 +89,31 @@ contains
 
             ! @TODO import eigenvector
 
-            do iorb = 1,norb
-
-                ! no_up(io) = no_up(io) + nou*pev(iev)*factor
-                ! no_dn(io) = no_dn(io) + nod*pev(iev)*factor
+            do ispin=1,2
+                do iorb = 1,norb
+                    ! call calc_green_diag(nloc,eigvec,eigval(iev),pev(iev), &
+                    !                 iorb, ispin)
+                enddo
             enddo
 
         enddo nevloop
 
     end subroutine ed_calc_green_ftn
 
+    ! subroutine calc_green_diag(nloc,eigvec,eigval,pev,iorb,ispin)
+    !     integer, intent(in) :: nloc, iorb, ispin
+    !     real(dp), intent(in) :: eigvec(nloc), eigval, pev
+
+
+    ! end subroutine green_diag
+
+    ! subroutine lanczos(
+    !     real(dp), allocatable, intent(out) :: 
+    !    integer :: istep
+
+    !    do istep=1,nstep
+            
+    !    enddo
+
+    ! end subroutine lanczos
 end module ed_green

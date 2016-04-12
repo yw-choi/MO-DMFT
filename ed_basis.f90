@@ -8,90 +8,68 @@ module ed_basis
     
     implicit none
 
-    integer, pointer :: nlocals(:), offsets(:)
-    integer, pointer :: nbasis_up(:)
-    integer, pointer :: nbasis_down(:)
-    integer, pointer :: nbasis(:)       
+    type basis_t
+        integer :: nloc
 
-    ! For up,down basis, 4-bit integer is sufficient,
-    ! because the maximum number of sites will not be more than 31.
-    integer, pointer :: basis_up(:)
-    integer, pointer :: basis_down(:)
+        integer :: ntot
+        integer :: nup
+        integer :: ndown
 
-    integer, pointer :: basis_up_idx(:)
-    integer, pointer :: basis_down_idx(:)
+        ! For up,down basis, 4-bit integer is sufficient,
+        ! because the maximum number of sites will not be more than 31.
+        integer, pointer :: up(:)
+        integer, pointer :: down(:)
+
+        integer, pointer :: idx_up(:)
+        integer, pointer :: idx_down(:)
+
+        integer, allocatable :: nlocals(:)
+        integer, allocatable :: offsets(:)
+    end type basis_t
 
     integer, private :: isector
 
     public
 contains
 
-    subroutine ed_basis_init
-        integer :: i, nd
-        
-        if (node.eq.0) then
-            write(6,"(A)") "ed_basis: basis initiailization"
-        endif
-
-        call re_alloc(nlocals,0,Nodes-1,name="nlocals",routine="ed_hamiltonian_init")
-        call re_alloc(offsets,0,Nodes-1,name="offsets",routine="ed_hamiltonian_init")
-
-        call re_alloc(nbasis_up,1,nsector,name="nbasis_up",routine="ed_hamiltonian_init")
-        call re_alloc(nbasis_down,1,nsector,name="nbasis_down",routine="ed_hamiltonian_init")
-        call re_alloc(nbasis,1,nsector,name="nbasis",routine="ed_hamiltonian_init")
-
-        do i=1,nsector
-            nd = nelec(i) - nup(i)
-            nbasis_up(i) = icom(nelec(i),nup(i))
-            nbasis_down(i) = icom(nelec(i),nd)
-            nbasis(i) = nbasis_up(i)*nbasis_down(i)
-        enddo
-
-        if (node.eq.0) then
-            write(6,"(A)") "|------------------------------------------------------------------------|"
-            write(6,"(A)") "  Dimension of each sector" 
-            write(6,"(A)") "|------------------------------------------------------------------------|"
-            write(6,"(A)") "| isector | Ne      | Nup     | Ndown   | nbasis   | nbasis_u | nbasis_d |"
-            write(6,"(A)") "|------------------------------------------------------------------------|"
-            do i=1,nsector
-                write(6,"(7(I9,x))") i,Nelec(i),Nup(i),(Nelec(i)-nup(i)),nbasis(i),nbasis_up(i),nbasis_down(i)
-            enddo
-            write(6,"(A)") "|------------------------------------------------------------------------|"
-        endif
-    end subroutine ed_basis_init
-
-    subroutine prepare_basis_for_sector(isec,nbasis_loc)
+    subroutine prepare_basis( ne_up, ne_down, basis )
         include 'mpif.h'
-        integer :: nbasis_loc ! number of basis in the sector local to the node.
-        integer, intent(in) :: isec
+        integer, intent(in) :: ne_up, ne_down
+        type(basis_t), intent(out) :: basis
+
         integer :: nam, i
-        isector = isec
 
-        nbasis_loc = nbasis(isector)/nodes
-        nam = mod(nbasis(isector),nodes)
-        if (node.lt.nam) nbasis_loc = nbasis_loc + 1
+        basis%nbasis_up   = icom(Nsite,ne_up)
+        basis%nbasis_down = icom(Nsite,ne_down)
+        basis%nbasis      = basis%nbasis_up * basis%nbasis_down
 
-        call mpi_allgather(nbasis_loc,1,mpi_integer,nlocals(0),1,mpi_integer,comm,ierr)
+        basis%nbasis_loc  = basis%nbasis/nodes
+        nam = mod(basis%nbasis,nodes)
+        if (node.lt.nam) basis%nbasis_loc = basis%nbasis_loc + 1
+
+        call mpi_allgather(nbasis%nbasis_loc,1,mpi_integer,basis(0),1,mpi_integer,comm,ierr)
 
         offsets(0) = 0 
         do i = 1, nodes-1
             offsets(i) = offsets(i-1) + nlocals(i-1)
         enddo
 
-        call generate_basis(isector)
+        call re_alloc(basis_up,1,nbasis_up(isector),'basis_up','prepare_basis_for_sector')
+        call re_alloc(basis_down,1,nbasis_down(isector),'basis_down','prepare_basis_for_sector')
+        call generate_basis(nup(isector),nelec(isector)-nup(isector),nbasis_up(isector),&
+                            nbasis_down(isector),basis_up,basis_down,basis_up_idx,basis_down_idx)
     end subroutine prepare_basis_for_sector
 
-    subroutine generate_basis(isector)
-        integer, intent(in) :: isector
+    subroutine generate_basis(neup,nedown,nbup,nbdown,b_up,b_down,bidx_up,bidx_down)
+        integer, intent(in) :: neup, nedown, nbup, nbdown
+        integer, pointer, intent(out) :: b_up(:), b_down(:), bidx_up(:), bidx_down(:)
+
         integer :: ispin, i, j
         integer :: minrange, maxrange, counts, nbit
         integer :: nud(2)
 
-        call re_alloc(basis_up,1,nbasis_up(isector),'basis_up','prepare_basis_for_sector')
-        call re_alloc(basis_down,1,nbasis_down(isector),'basis_down','prepare_basis_for_sector')
-
-        nud(1) = nup(isector)
-        nud(2) = nelec(isector) - nup(isector)
+        nud(1) = neup
+        nud(2) = nedown
 
         do ispin=1,2
             minrange = 0
@@ -103,10 +81,9 @@ contains
             enddo
             
             if (ispin.eq.1) then
-                call re_alloc(basis_up_idx,minrange,maxrange,'basis_up_idx','generate_basis')
+                call re_alloc(bidx_up,minrange,maxrange,routine='generate_basis')
             else
-                call re_alloc(basis_down_idx,minrange,maxrange,'basis_down_idx', &
-                              'generate_basis')
+                call re_alloc(bidx_down,minrange,maxrange,routine='generate_basis')
             endif
             
             counts = 0
@@ -122,11 +99,11 @@ contains
                 if (nbit.eq.nud(ispin)) then
                     counts = counts + 1
                     if (ispin.eq.1) then
-                        basis_up(counts) = i
-                        basis_up_idx(i) = counts
+                        b_up(counts) = i
+                        bidx_up(i) = counts
                     else
-                        basis_down(counts) = i
-                        basis_down_idx(i) = counts
+                        b_down(counts) = i
+                        bidx_down(i) = counts
                     endif
                 endif
             enddo
