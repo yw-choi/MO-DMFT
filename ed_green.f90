@@ -11,12 +11,12 @@ module ed_green
 
     implicit none
 
-    integer, allocatable :: nlocals_w(:), offsets_w(:)
-    real(dp), allocatable :: omega(:)
-    integer :: nwloc
+    integer, allocatable, save :: nlocals_w(:), offsets_w(:)
+    real(dp), allocatable, save :: omega(:)
+    integer, save :: nwloc
 
-    complex(dp), allocatable :: Gr(:,:)
-    real(dp), allocatable :: nocc(:,:)
+    complex(dp), allocatable, save :: Gr(:,:), D_ev(:,:), Gksum(:,:)
+    real(dp), allocatable, save :: nocc(:)
 
     integer, parameter :: pi = acos(-1.0_dp)
 contains
@@ -50,8 +50,9 @@ contains
             enddo
         endif
         
-        allocate(Gr(Norb,nwloc))
-        allocate(nocc(norb,2))
+        allocate(Gr(Norb,nwloc),D_ev(Norb,nwloc),Gksum(norb,nwloc))
+        allocate(nocc(norb))
+        ! allocate(nocc(norb,2))
     end subroutine ed_green_init
 
     subroutine ed_calc_green_ftn(nev_calc)
@@ -65,6 +66,10 @@ contains
         type(basis_t) :: basis
 
         allocate(eigval(nev_calc),pev(nev_calc),ind(nev_calc))
+
+        if (node.eq.0) then
+            write(6,*) "ed_green: import eigvalues"
+        endif
         call import_eigval(nev_calc,eigval,pev,ind)
 
         Z = 0.D0
@@ -78,11 +83,15 @@ contains
 
         Gr(:,:) = 0.D0 
 
-        nocc(:,:) = 0.D0
+        ! nocc(:,:) = 0.D0
 
         nevloop: do iev=1,nev_calc
             isector = (ind(iev)-1)/nev+1
             ilevel = mod(ind(iev)-1,nev)+1
+
+            if (node.eq.0) then
+                write(6,*) "ed_green: iev=",iev,", isector=",isector,",ilevel=",ilevel
+            endif
 
             nd = nelec(isector)-nup(isector)
             if (nd.eq.nup(isector)) then
@@ -103,32 +112,40 @@ contains
 
             ! spin up part 
             do iorb = 1,norb
+                if (node.eq.0) then
+                    write(6,*) "ed_green: iorb=",iorb
+                endif
                 call green_diag(basis,eigvec,eigval(iev),pev(iev),factor,iorb, 1)
-                call find_nocc(basis,eigvec,iorb,nocc_up,nocc_down)
-                nocc(iorb,1) = nocc(iorb,1) + nocc_up*pev(iev)*factor
-                nocc(iorb,2) = nocc(iorb,2) + nocc_down*pev(iev)*factor
+                ! call find_nocc(basis,eigvec,iorb,nocc_up,nocc_down)
+                ! nocc(iorb,1) = nocc(iorb,1) + nocc_up*pev(iev)*factor
+                ! nocc(iorb,2) = nocc(iorb,2) + nocc_down*pev(iev)*factor
             enddo
 
             if (nd.ne.nup(isector)) then
                 ! spin down part
                 do iorb = 1,norb
                     call green_diag(basis,eigvec,eigval(iev),pev(iev),factor,iorb, 2)
-                    call find_nocc(basis,eigvec,iorb,nocc_up,nocc_down)
-                    nocc(iorb,1) = nocc(iorb,1) + nocc_up*pev(iev)*factor
-                    nocc(iorb,2) = nocc(iorb,2) + nocc_down*pev(iev)*factor
+                    ! call find_nocc(basis,eigvec,iorb,nocc_up,nocc_down)
+                    ! nocc(iorb,1) = nocc(iorb,1) + nocc_up*pev(iev)*factor
+                    ! nocc(iorb,2) = nocc(iorb,2) + nocc_down*pev(iev)*factor
                 enddo
 
             endif
+            call mpi_barrier(comm,ierr)
+            if (ierr.ne.0) then
+                call die("MPIError")
+                return
+            endif
         enddo nevloop
 
-        if(node.eq.0) then
-           write(6,*) "ed_calc_green_ftn: particle density (up/down spin) "
-           do iorb = 1, norb
-              write(6,'(i2,3x,2e)') iorb, nocc(iorb,1), nocc(iorb,2)
-           enddo
-           write(6,'(a,2e)') "sum=", sum(nocc(:,:))
-           write(6,*)  " "
-        endif
+        ! if(node.eq.0) then
+        !    write(6,*) "ed_calc_green_ftn: particle density (up/down spin) "
+        !    do iorb = 1, norb
+        !       write(6,'(i2,3x,2e)') iorb, nocc(iorb,1), nocc(iorb,2)
+        !    enddo
+        !    write(6,'(a,2e)') "sum=", sum(nocc(:,:))
+        !    write(6,*)  " "
+        ! endif
     end subroutine ed_calc_green_ftn
 
     subroutine green_diag(basis,eigvec,eigval,pev,factor,iorb,ispin)
@@ -147,8 +164,10 @@ contains
         ! lanczos matrix elements
         real(dp), allocatable :: a(:), b(:) 
 
+        call timestamp2("before apply_c 1")
         ! One more particle at iorb,ispin
         call apply_c(basis, eigvec, 1, iorb, ispin, basis_out, v)
+        call timestamp2("before lanczos_iteration 1")
         call lanczos_iteration(basis_out, v, nstep_calc, a, b)
 
         nocc_i = mpi_dot_product(v,v,basis_out%nloc)
@@ -160,11 +179,13 @@ contains
                 grx = b(j)/(cmplx_omega-a(j)-grx)
             enddo 
 
-            Gr(iorb,j) = Gr(iorb,j) + pev*factor*grx
+            Gr(iorb,i) = Gr(iorb,i) + pev*factor*grx
         enddo
 
         ! One less particle at iorb,ispin
+        call timestamp2("before apply_c 2")
         call apply_c(basis, eigvec, 2, iorb, ispin, basis_out, v)
+        call timestamp2("before lanczos_iteration 2")
         call lanczos_iteration(basis_out, v, nstep_calc, a, b)
 
         b(0) = nocc_i
@@ -175,7 +196,7 @@ contains
                 grx = b(j)/(cmplx_omega+a(j)-grx)
             enddo 
 
-            Gr(iorb,j) = Gr(iorb,j) + pev*factor*grx
+            Gr(iorb,i) = Gr(iorb,i) + pev*factor*grx
         enddo
     end subroutine green_diag
 
@@ -210,4 +231,65 @@ contains
         return
     end subroutine find_nocc
 
+    subroutine ed_delta_new
+
+        complex(dp) :: Atmp(Norb,Norb),Btmp(Norb,Norb),Hk(Norb,Norb,Nq)
+        complex(dp) :: Ptmp(Norb,Norb)
+        integer :: iw, jq, iorb, korb
+
+        do iw = 1,nwloc
+            Gksum(:,iw) = cmplx(0.D0,0.D0)
+            do jq = 1, Nq
+                do iorb = 1, Norb
+                    do korb = 1, Norb
+                        Ptmp(iorb,korb)=(1.D0/Gr(iorb,iw)+D_ev(iorb,iw) &
+                            +rMu)*kdel(iorb,korb)-Hk(iorb,korb,jq)
+                    enddo
+                enddo
+                Atmp(:,:) = Ptmp(:,:)
+                call cinv(Atmp,Norb,Norb,Btmp)
+                do iorb = 1, Norb
+                    Gksum(iorb,iw) = Gksum(iorb,iw)+Btmp(iorb,iorb)
+                enddo
+            enddo
+            Gksum(:,iw) = Gksum(:,iw)/float(Nq)
+            D_ev(:,iw) = 1.D0/Gr(:,iw)-1.D0/Gksum(:,iw) + D_ev(:,iw)
+        enddo
+    end subroutine ed_delta_new
+
+    real(dp) function kdel(iorb,korb)
+        integer:: iorb, korb
+
+        if(iorb.eq.korb) kdel = 1.D0
+        if(iorb.ne.korb) kdel = 0.D0
+
+        return
+    end function kdel
+
+    subroutine n_from_gksum
+        integer i,j,k,iw,iorb,nw,master
+        complex(dp), allocatable:: Gksum_tot(:,:)
+
+        call mpi_allreduce(nwloc,nw,1,mpi_integer,mpi_sum,comm,ierr)
+
+        if (node.eq.0) then
+            allocate(Gksum_tot(norb,nw))
+        endif
+
+        do iorb = 1, norb
+            call mpi_gatherv(gksum(iorb,:),nwloc,mpi_double_complex,&
+                             Gksum_tot(iorb,:),nlocals_w,offsets_w,mpi_double_complex,&
+                             0,comm,ierr)
+        enddo
+
+        if(node.eq.0) then
+            write(6,*) "Occupations from local Green function"
+            do iorb = 1, norb
+                nocc(iorb) = 2.D0*sum(real(gksum_tot(iorb,:)))/beta+0.5D0
+                write(6,'(a,i2,3x,f10.7)') "Orbtal",iorb,nocc(iorb)
+            enddo
+            write(6,'(a,5x,f10.7)') "sum =", sum(nocc(:))
+            deallocate(gksum_tot)
+        endif
+    end subroutine n_from_gksum
 end module ed_green

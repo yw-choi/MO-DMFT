@@ -13,7 +13,7 @@ LIBS          = -mkl=sequential $(PARPACK) $(ARPACK) $(FFTW)
 ################################################################
 
 RANLIB          = ranlib
-DEFS            = -DMPI -DDEBUG -DDATA_PLAINTEXT
+DEFS            = -DMPI # -DDEBUG # -DDATA_PLAINTEXT
 #
 .F.o:
 	$(FC) -c $(FFLAGS)  $(DEFS) $<

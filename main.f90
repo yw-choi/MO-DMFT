@@ -53,7 +53,9 @@ program MO_DMFT_ED
 
         call ed_calc_green_ftn(nev_calc)
 
-        ! call ed_delta_new
+        call ed_delta_new
+
+        call n_from_gksum
 
         ! call ed_minimize 
 

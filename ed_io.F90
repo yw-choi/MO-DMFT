@@ -23,7 +23,7 @@ contains
 #ifdef DATA_PLAINTEXT
         open(unit=iunit,file=fname,status="replace")
         write(iunit,"(I)") nloc
-        write(iunit,"(F10.3)") (eigvec(i),i=1,nloc)
+        write(iunit,"(F24.16)") (eigvec(i),i=1,nloc)
 #else
         open(unit=iunit,file=fname,status="replace",form="unformatted")
         write(iunit) nloc
@@ -43,7 +43,7 @@ contains
         open(unit=EIGVAL_IUNIT_BASE,file="eigenvalues.dat",form="formatted",&
             status="replace")
         write(EIGVAL_IUNIT_BASE,"(I4)") nev_calc
-        write(EIGVAL_IUNIT_BASE,"(I4,2F10.3)") (ind(k),eigval_all(ind(k)),pev(ind(k)),k=1,nev_calc)
+        write(EIGVAL_IUNIT_BASE,"(I4,2F24.16)") (ind(k),eigval_all(ind(k)),pev(ind(k)),k=1,nev_calc)
 #else
         open(unit=EIGVAL_IUNIT_BASE,file="eigenvalues.dat",form="unformatted",&
             status="replace")
@@ -116,7 +116,7 @@ contains
         open(unit=iunit,file=fname,status="old",form="formatted")
         read(iunit,"(I)") nloc
         allocate(eigvec(nloc))
-        read(iunit,"(F10.3)") (eigvec(i),i=1,nloc)
+        read(iunit,"(F24.16)") (eigvec(i),i=1,nloc)
 #else
         open(unit=iunit,file=fname,status="old",form="unformatted")
         read(iunit) nloc

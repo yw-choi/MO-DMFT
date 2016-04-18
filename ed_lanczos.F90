@@ -31,8 +31,8 @@ contains
         v(1:basis%nloc,2) = 0.0_dp
         w(1:basis%nloc) = 0.0_dp
 
-        a(1:nstep) = 0.0_dp
-        b(1:nstep) = 0.0_dp
+        a(0:nstep) = 0.0_dp
+        b(0:nstep) = 0.0_dp
 
         v(1:basis%nloc,2) = vec
 
@@ -62,6 +62,9 @@ contains
             b(j+1) = mpi_norm(w(:), basis%nloc)
 
             if (b(j+1).lt.1e-12) then
+                if (node.eq.0) then
+                    write(*,*) "lanczos: b_(j+1) = 0 at j=", j
+                endif
                 exit lanczos_loop
             endif
 
@@ -70,6 +73,7 @@ contains
 
             ! v_(j+1) = w_j/b(j+1)
             v(:,2) = w(:)/b(j+1)
+            call mpi_barrier(comm,ierr)
         enddo lanczos_loop
 
         if (nstep_calc.eq.nstep-1) then
