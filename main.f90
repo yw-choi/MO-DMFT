@@ -41,7 +41,6 @@ program MO_DMFT_ED
     call ed_read_options
     call ed_hamiltonian_init
     call ed_set_band_structure
-
     call ed_green_init
 
     call timestamp2("DMFT LOOP START")
@@ -53,9 +52,9 @@ program MO_DMFT_ED
 
         call ed_calc_green_ftn(nev_calc)
 
-        call ed_delta_new
+        ! call ed_delta_new
 
-        call n_from_gksum
+        ! call n_from_gksum
 
         ! call ed_minimize 
 

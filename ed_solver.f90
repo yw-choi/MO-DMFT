@@ -28,12 +28,13 @@ contains
 
         call timer('ed_solve',1)
         do isector=1,nsector
-            if (node.eq.0) then
-                write(*,*) "ed_solver: iloop = ",iloop," , isector = ",isector
-            endif
-
             ne_up = nup(isector)
             ne_down = nelec(isector) - nup(isector)
+
+            if (node.eq.0) then
+                write(*,*) "ed_solver: iloop = ",iloop," , isector = ",isector
+                write(*,*), "ed_solver: ne_up=", ne_up, " ne_down=",ne_down
+            endif
 
             basis = generate_basis( ne_up, ne_down )
 

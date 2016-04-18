@@ -55,11 +55,13 @@ contains
     end subroutine export_eigval
 
     subroutine import_eigval(nev_calc,eigval,pev,ind)
+        include 'mpif.h'
         integer, intent(in) :: nev_calc
         real(dp), intent(out) :: eigval(nev_calc), pev(nev_calc)
         integer, intent(out) :: ind(nev_calc)
 
         integer :: i, iunit, nev_calc_read
+        if (node.eq.0) then
         iunit = EIGVAL_IUNIT_BASE
 #ifdef DATA_PLAINTEXT
         open(unit=iunit,file="eigenvalues.dat",status="old",form="formatted")
@@ -88,6 +90,12 @@ contains
 #endif
         enddo
         close(iunit)
+        endif
+
+        call MPI_Bcast(nev_calc_read,1,mpi_integer,0,comm,ierr)
+        call MPI_Bcast(ind,nev_calc,mpi_integer,0,comm,ierr)
+        call MPI_Bcast(eigval,nev_calc,mpi_double_precision,0,comm,ierr)
+        call MPI_Bcast(pev,nev_calc,mpi_double_precision,0,comm,ierr)
 
     end subroutine import_eigval
 

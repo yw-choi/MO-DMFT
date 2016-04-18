@@ -1,6 +1,7 @@
 module ed_basis
     use ed_config, only: nsite, kind_basis
     use parallel_params, only: nodes, node,comm,ierr
+    use sys
     use ed_utils, only: icom
     use precision
     
@@ -54,6 +55,11 @@ contains
 
         allocate(basis%nlocals(0:nodes-1),basis%offsets(0:nodes-1))
         call mpi_allgather(basis%nloc,1,mpi_integer,basis%nlocals(0),1,mpi_integer,comm,ierr)
+        if (ierr.ne.0) then
+            call die("MPIError in generate_basis")
+            return
+        endif
+        call mpi_barrier(mpi_comm_world,ierr)
 
         basis%offsets(0) = 0 
         do i = 1, nodes-1
@@ -117,7 +123,7 @@ contains
         idx = idx_loc + basis%offsets(node)
 
         iup = mod(idx-1,basis%nup)+1
-        idown = (idx-1)/basis%ndown+1
+        idown = (idx-1)/basis%nup+1
 
         ed_basis_get = basis%up(iup)+2**(Nsite)*basis%down(idown)
     end function ed_basis_get
@@ -129,7 +135,7 @@ contains
 
         ! local variables
         integer :: basis_i_up, basis_i_down
-
+        
         basis_i_up = mod(basis_i,2**Nsite)
         basis_i_down = basis_i/(2**Nsite)
 

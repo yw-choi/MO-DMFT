@@ -112,9 +112,6 @@ contains
 
             ! spin up part 
             do iorb = 1,norb
-                if (node.eq.0) then
-                    write(6,*) "ed_green: iorb=",iorb
-                endif
                 call green_diag(basis,eigvec,eigval(iev),pev(iev),factor,iorb, 1)
                 ! call find_nocc(basis,eigvec,iorb,nocc_up,nocc_down)
                 ! nocc(iorb,1) = nocc(iorb,1) + nocc_up*pev(iev)*factor
@@ -132,10 +129,6 @@ contains
 
             endif
             call mpi_barrier(comm,ierr)
-            if (ierr.ne.0) then
-                call die("MPIError")
-                return
-            endif
         enddo nevloop
 
         ! if(node.eq.0) then

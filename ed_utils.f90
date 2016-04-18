@@ -15,7 +15,7 @@ contains
         call mpi_allreduce(dab_tmp,dab,1,mpi_double_precision,&
             mpi_sum,comm,ierr)
 
-        return    
+        return
     end function mpi_dot_product
 
     real(dp) function mpi_norm(A,n) result(dab)

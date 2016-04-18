@@ -20,22 +20,29 @@ contains
 
         if (ispin.eq.1) then
             if (pm.eq.1) then
+                print *, 'generate_basis with ne_up=',(basis%ne_up+1),' ne_down=',basis%ne_down
                 basis_out = generate_basis( basis%ne_up+1, basis%ne_down )
             else
+                print *, 'generate_basis with ne_up=',(basis%ne_up-1),' ne_down=',basis%ne_down
                 basis_out = generate_basis( basis%ne_up-1, basis%ne_down )
             endif
         else
             if (pm.eq.1) then
+                print *, 'generate_basis with ne_up=',(basis%ne_up),' ne_down=',(basis%ne_down+1)
                 basis_out = generate_basis( basis%ne_up, basis%ne_down+1 )
             else
+                print *, 'generate_basis with ne_up=',(basis%ne_up),' ne_down=',(basis%ne_down-1)
                 basis_out = generate_basis( basis%ne_up, basis%ne_down-1 )
             endif
         endif
 
+        print *, 'nlocals', basis%nlocals
+        print *, 'offsets', basis%offsets
+
         allocate(vec_out(basis_out%nloc))
+        allocate(vec_all(basis%ntot))
         vec_out = 0.0_dp
 
-        allocate(vec_all(basis%ntot))
         call mpi_allgatherv(vec,basis%nloc,mpi_double_precision,vec_all,&
             basis%nlocals,basis%offsets,mpi_double_precision,comm,ierr)
 
@@ -54,8 +61,8 @@ contains
             j = ed_basis_idx(basis, basis_j)
             vec_out(i) = vec_out(i) + vec_all(j)*sgn
         enddo
-        deallocate(vec_all)
 
+        deallocate(vec_all)
     end subroutine apply_c
 
     integer function get_bitidx(isite,ispin)
