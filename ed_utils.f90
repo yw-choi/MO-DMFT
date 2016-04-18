@@ -4,7 +4,6 @@ module ed_utils
     implicit none
 
 contains
-
     real(dp) function mpi_dot_product(A,B,n) result(dab)
         include 'mpif.h'
 

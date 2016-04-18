@@ -20,24 +20,17 @@ contains
 
         if (ispin.eq.1) then
             if (pm.eq.1) then
-                print *, 'generate_basis with ne_up=',(basis%ne_up+1),' ne_down=',basis%ne_down
-                basis_out = generate_basis( basis%ne_up+1, basis%ne_down )
+                basis_out = generate_basis( basis%ne_up+1, basis%ne_down)
             else
-                print *, 'generate_basis with ne_up=',(basis%ne_up-1),' ne_down=',basis%ne_down
-                basis_out = generate_basis( basis%ne_up-1, basis%ne_down )
+                basis_out = generate_basis( basis%ne_up-1, basis%ne_down)
             endif
         else
             if (pm.eq.1) then
-                print *, 'generate_basis with ne_up=',(basis%ne_up),' ne_down=',(basis%ne_down+1)
-                basis_out = generate_basis( basis%ne_up, basis%ne_down+1 )
+                basis_out = generate_basis( basis%ne_up, basis%ne_down+1)
             else
-                print *, 'generate_basis with ne_up=',(basis%ne_up),' ne_down=',(basis%ne_down-1)
-                basis_out = generate_basis( basis%ne_up, basis%ne_down-1 )
+                basis_out = generate_basis( basis%ne_up, basis%ne_down-1)
             endif
         endif
-
-        print *, 'nlocals', basis%nlocals
-        print *, 'offsets', basis%offsets
 
         allocate(vec_out(basis_out%nloc))
         allocate(vec_all(basis%ntot))

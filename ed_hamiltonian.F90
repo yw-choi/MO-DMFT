@@ -149,52 +149,11 @@ contains
                         call hybridization1(basis_i,iorb,ibath,ispin,basis_j,coeff)
                         if (basis_j.ne.0) then
                             j = ed_basis_idx(basis,basis_j) 
-                            j = ed_basis_idx(basis,basis_j) 
-                            if (.not.(j.ge.1.and.j.le.basis%ntot)) then
-                                write(6,*) "multiply_H: hybridization1"
-                                write(6,*) "multiply_H: wrong basis index : ", j
-                                write(6,*) "ne_up", basis%ne_up
-                                write(6,*) "ne_down", basis%ne_down
-                                write(6,*) "iorb", iorb
-                                write(6,*) "ibath", ibath
-                                write(6,*) "ispin", ispin
-                                write(6,'(B)') basis_i
-                                write(6,*) basis_i
-                                write(6,'(B)') basis_j
-                                write(6,*) basis_j
-                                write(6,*) "multiply_H: basis%ntot : ", basis%ntot
-
-                                do k=1,basis%ndown
-                                    write(*,"(B)") basis%down(k)
-                                enddo
-                                call die
-                                return
-                            endif
                             B(i) = B(i) + coeff*A_all(j)
                         endif
                         call hybridization2(basis_i,iorb,ibath,ispin,basis_j,coeff)
                         if (basis_j.ne.0) then
                             j = ed_basis_idx(basis,basis_j) 
-                            if (.not.(j.ge.1.and.j.le.basis%ntot)) then
-                                write(6,*) "multiply_H: hybridization2", node
-                                write(6,*) "multiply_H: wrong basis index : ", j
-                                write(6,*) "ne_up", basis%ne_up
-                                write(6,*) "ne_down", basis%ne_down
-                                write(6,*) "iorb", iorb
-                                write(6,*) "ibath", ibath
-                                write(6,*) "ispin", ispin
-                                write(6,'(B)') basis_i
-                                write(6,*) basis_i
-                                write(6,'(B)') basis_j
-                                write(6,*) basis_j
-                                write(6,*) "multiply_H: basis%ntot : ", basis%ntot
-                                do k=1,basis%ndown
-                                    write(*,"(B)") basis%down(k)
-                                    write(*,*) basis%idx_down(basis%down(k))
-                                enddo
-                                call die
-                                return
-                            endif
                             B(i) = B(i) + coeff*A_all(j)
                         endif
                     enddo
@@ -209,13 +168,6 @@ contains
                     call spin_flip(basis_i,iorb,jorb,basis_j,coeff)
                     if (basis_j.ne.0) then
                         j = ed_basis_idx(basis,basis_j) 
-                        if (.not.(j.ge.1.and.j.le.basis%ntot)) then
-                            write(6,*) "multiply_H: spin_flip"
-                            write(6,*) "multiply_H: wrong basis index : ", j
-                            write(6,*) "multiply_H: basis%ntot : ", basis%ntot
-                            call die
-                            return
-                        endif
                         B(i) = B(i) + coeff*A_all(j)
                     endif
                 enddo
@@ -229,13 +181,6 @@ contains
                     call pair_exchange(basis_i,iorb,jorb,basis_j,coeff)
                     if (basis_j.ne.0) then
                         j = ed_basis_idx(basis,basis_j) 
-                        if (.not.(j.ge.1.and.j.le.basis%ntot)) then
-                            write(6,*) "multiply_H: pair_exchange"
-                            write(6,*) "multiply_H: wrong basis index : ", j
-                            write(6,*) "multiply_H: basis%ntot : ", basis%ntot
-                            call die
-                            return
-                        endif
                         B(i) = B(i) + coeff*A_all(j)
                     endif
                 enddo

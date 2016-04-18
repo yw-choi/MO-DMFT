@@ -55,11 +55,6 @@ contains
 
         allocate(basis%nlocals(0:nodes-1),basis%offsets(0:nodes-1))
         call mpi_allgather(basis%nloc,1,mpi_integer,basis%nlocals(0),1,mpi_integer,comm,ierr)
-        if (ierr.ne.0) then
-            call die("MPIError in generate_basis")
-            return
-        endif
-        call mpi_barrier(mpi_comm_world,ierr)
 
         basis%offsets(0) = 0 
         do i = 1, nodes-1

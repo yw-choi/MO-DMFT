@@ -101,7 +101,7 @@ contains
             endif
 
             call import_eigvec(isector,ilevel,node,nloc,eigvec)
-            basis = generate_basis( nup(isector), nelec(isector)-nup(isector) )
+            basis = generate_basis( nup(isector), nelec(isector)-nup(isector))
 
             if (nloc.ne.basis%nloc) then
                 write(6,*) "ed_calc_green_ftn: basis dimension mismatch"
@@ -113,32 +113,16 @@ contains
             ! spin up part 
             do iorb = 1,norb
                 call green_diag(basis,eigvec,eigval(iev),pev(iev),factor,iorb, 1)
-                ! call find_nocc(basis,eigvec,iorb,nocc_up,nocc_down)
-                ! nocc(iorb,1) = nocc(iorb,1) + nocc_up*pev(iev)*factor
-                ! nocc(iorb,2) = nocc(iorb,2) + nocc_down*pev(iev)*factor
             enddo
 
             if (nd.ne.nup(isector)) then
                 ! spin down part
                 do iorb = 1,norb
                     call green_diag(basis,eigvec,eigval(iev),pev(iev),factor,iorb, 2)
-                    ! call find_nocc(basis,eigvec,iorb,nocc_up,nocc_down)
-                    ! nocc(iorb,1) = nocc(iorb,1) + nocc_up*pev(iev)*factor
-                    ! nocc(iorb,2) = nocc(iorb,2) + nocc_down*pev(iev)*factor
                 enddo
 
             endif
-            call mpi_barrier(comm,ierr)
         enddo nevloop
-
-        ! if(node.eq.0) then
-        !    write(6,*) "ed_calc_green_ftn: particle density (up/down spin) "
-        !    do iorb = 1, norb
-        !       write(6,'(i2,3x,2e)') iorb, nocc(iorb,1), nocc(iorb,2)
-        !    enddo
-        !    write(6,'(a,2e)') "sum=", sum(nocc(:,:))
-        !    write(6,*)  " "
-        ! endif
     end subroutine ed_calc_green_ftn
 
     subroutine green_diag(basis,eigvec,eigval,pev,factor,iorb,ispin)
@@ -157,10 +141,8 @@ contains
         ! lanczos matrix elements
         real(dp), allocatable :: a(:), b(:) 
 
-        call timestamp2("before apply_c 1")
         ! One more particle at iorb,ispin
         call apply_c(basis, eigvec, 1, iorb, ispin, basis_out, v)
-        call timestamp2("before lanczos_iteration 1")
         call lanczos_iteration(basis_out, v, nstep_calc, a, b)
 
         nocc_i = mpi_dot_product(v,v,basis_out%nloc)
@@ -176,9 +158,7 @@ contains
         enddo
 
         ! One less particle at iorb,ispin
-        call timestamp2("before apply_c 2")
         call apply_c(basis, eigvec, 2, iorb, ispin, basis_out, v)
-        call timestamp2("before lanczos_iteration 2")
         call lanczos_iteration(basis_out, v, nstep_calc, a, b)
 
         b(0) = nocc_i

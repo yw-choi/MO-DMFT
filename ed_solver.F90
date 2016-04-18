@@ -36,7 +36,7 @@ contains
                 write(*,*), "ed_solver: ne_up=", ne_up, " ne_down=",ne_down
             endif
 
-            basis = generate_basis( ne_up, ne_down )
+            basis = generate_basis( ne_up, ne_down)
 
             allocate(eigvec(basis%nloc,nev))
 
@@ -72,7 +72,6 @@ contains
             call export_eigval(nev_calc,eigval_all,pev,ind)
         endif
 
-        call mpi_barrier(comm,ierr)
         call timer('ed_solve',2)
         return
     end subroutine ed_solve
