@@ -15,7 +15,7 @@ module ed_green
     real(dp), allocatable, save :: omega(:)
     integer, save :: nwloc
 
-    complex(dp), allocatable, save :: Gr(:,:), D_ev(:,:), Gksum(:,:)
+    complex(dp), allocatable, save :: Gr(:,:), Gr_prev(:,:), D_ev(:,:), Gksum(:,:)
     real(dp), allocatable, save :: nocc(:)
 
 contains
@@ -49,7 +49,7 @@ contains
             enddo
         endif
         
-        allocate(Gr(Norb,nwloc),D_ev(Norb,nwloc),Gksum(norb,nwloc))
+        allocate(Gr(Norb,nwloc),Gr_prev(Norb,nwloc),D_ev(Norb,nwloc),Gksum(norb,nwloc))
         allocate(nocc(norb))
 
         call calc_dev

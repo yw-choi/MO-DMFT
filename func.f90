@@ -9,7 +9,7 @@
       integer::iw,ksite,iorb,korb,Ns,nwloc,nxsize,Nbath,Norb,nw,i
       double complex::cpx_omega,delta(Norb,nwloc),cpx_temp,&
                       D_ev(Norb,nwloc)
-      double precision::x(nxsize),func,func_loc,ek(Ns),vk(Norb,Norb+1:Ns),&
+      double precision::x(nxsize),func,func_loc,ek(Ns),vk(Norb,1:Ns),&
                       omega(nwloc),ef(Norb),kdel
 
       call mpi_comm_size(comm,nprocs,ierr)
@@ -22,7 +22,7 @@
             delta(korb,iw) = dcmplx(0.D0,0.D0)
             do ksite = Norb+1, Ns
                delta(korb,iw) = delta(korb,iw) + &
-                                vk(korb,ksite)*vk(korb,ksite) &
+                                vk(korb,ksite-norb)*vk(korb,ksite-norb) &
                                 /(dcmplx(0.D0,omega(iw))-ek(ksite))
             enddo
             delta(korb,iw) = delta(korb,iw) + ef(korb)
@@ -58,7 +58,7 @@
       double complex:: cpx_omega,delta(Norb,nwloc), cpx_temp2,    &
                       D_ev(Norb,nwloc)
       double precision::x(nxsize),p(nxsize),p_loc(nxsize),ek(Ns),&
-                        vk(Norb,Norb+1:Ns),omega(nwloc),ef(Norb),&
+                        vk(Norb,1:Ns),omega(nwloc),ef(Norb),&
                         fp1,fp2,func,ptmp(nxsize),kdel
    
 !     do i = 1, nxsize
@@ -77,7 +77,7 @@
             delta(korb,iw) = dcmplx(0.D0,0.D0)
             do ksite = Norb+1, Ns
                delta(korb,iw) = delta(korb,iw) + &
-                                 vk(korb,ksite)*vk(korb,ksite) &
+                                 vk(korb,ksite-norb)*vk(korb,ksite-norb) &
                                    /(dcmplx(0.D0,omega(iw))-ek(ksite))
             enddo
             delta(korb,iw) = delta(korb,iw) + ef(korb)
@@ -93,7 +93,7 @@
             do iw = 1, nwloc
                 p_loc(ibath) = p_loc(ibath) + 2.D0*real(             &
                     dconjg(delta(korb,iw)-D_ev(korb,iw))             &
-                   *vk(korb,Norb+ibath)*vk(korb,Norb+ibath)          &
+                   *vk(korb,ibath)*vk(korb,ibath)          &
                    /(dcmplx(0.D0,omega(iw))-ek(Norb+ibath))          &
                    /(dcmplx(0.D0,omega(iw))-ek(Norb+ibath))          &
                    )/omega(iw)
@@ -108,9 +108,9 @@
             do iw = 1, nwloc
                p_loc(i) = p_loc(i)+2.D0*real(                       &
                           dconjg(delta(iorb,iw)-D_ev(iorb,iw))      & 
-                         *vk(iorb,ksite)/(dcmplx(0.D0,omega(iw))-ek(ksite))   &
+                         *vk(iorb,ksite-norb)/(dcmplx(0.D0,omega(iw))-ek(ksite))   &
                          + dconjg(delta(iorb,iw)-D_ev(iorb,iw)) &
-                         *vk(iorb,ksite)/(dcmplx(0.D0,omega(iw))-ek(ksite))   &
+                         *vk(iorb,ksite-norb)/(dcmplx(0.D0,omega(iw))-ek(ksite))   &
                          )/omega(iw)
             enddo
           enddo
@@ -168,7 +168,7 @@
       implicit none
       integer:: i,k,nxsize,Ns,Nbath,iorb,iinit,ifina,Norb
       double precision x(nxsize)
-      double precision ek(Ns),vk(Ns-Nbath,Ns-Nbath+1:Ns),ef(Ns-Nbath)
+      double precision ek(Ns),vk(Ns-Nbath,1:Nbath),ef(Ns-Nbath)
 
       Norb = Ns - Nbath
 
@@ -180,7 +180,7 @@
          iinit = Nbath+1+(iorb-1)*Nbath
          ifina = Nbath+iorb*Nbath
          do k = iinit, ifina
-            x(k) = vk(iorb,Norb+k-iinit+1)
+            x(k) = vk(iorb,k-iinit+1)
          enddo
       enddo
 
@@ -195,7 +195,7 @@
 
       implicit none
       integer:: i,nxsize,Ns,Nbath,Norb,iorb,ia,ib
-      double precision x(nxsize),ek(Ns),vk(Norb,Norb+1:Ns),ef(Norb)
+      double precision x(nxsize),ek(Ns),vk(Norb,1:Ns),ef(Norb)
 
       do i =1, Norb
          ek(i) = x(nxsize-Norb+i)
@@ -209,7 +209,7 @@
       do iorb = 1, Norb
          ia = (iorb-1)*Nbath
          do i = Norb+1, Ns
-            vk(iorb,i) = x(i+Nbath+ia-Norb)
+            vk(iorb,i-norb) = x(i+Nbath+ia-Norb)
          enddo
       enddo
 

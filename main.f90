@@ -22,6 +22,11 @@ program MO_DMFT_ED
 
     integer :: nev_calc
 
+    ! @TODO the follownig variables should be refactored to a separate module
+    integer :: nxsize,korb
+    real(dp) :: tol, xmin
+    real(dp), allocatable :: x(:)
+
     ! initializations that is also done in SIESTA part.
     call MPI_Init(ierr)
     call MPI_Comm_size(comm,Nodes,ierr)
@@ -46,30 +51,69 @@ program MO_DMFT_ED
     call ed_set_band_structure
     call ed_green_init
 
+    nxsize = nbath + norb + nbath*norb
+    allocate(x(nxsize))
+
     call timestamp2("DMFT LOOP START")
 
     iloop = 0
     converged = .false.
-    do while(.not.converged.and.iloop<nloop)
+    dmft_loop: do while(.not.converged.and.iloop<nloop)
         call ed_solve(iloop,nev_calc)
 
         call ed_calc_green_ftn(nev_calc)
 
-        open(unit=137,file="green.dump",status="replace",form="formatted")
-        do i=1,nwloc
-            write(137,"(4F20.16)") omega(i), real(Gr(1,i)), aimag(Gr(1,i))
-        enddo
-        close(137)
+        ! open(unit=137,file="green.dump",status="replace",form="formatted")
+        ! do i=1,nwloc
+        !     write(137,"(4F20.16)") omega(i), real(Gr(1,i)), aimag(Gr(1,i))
+        ! enddo
+        ! close(137)
         call ed_delta_new
 
         call n_from_gksum
 
-        ! call ed_minimize 
+        ! *********************************************************************
+        ! Update ek, vk
+        ! *********************************************************************
+        call ev_to_x(ek,vk,ef,Nsite,Nbath,nxsize,x)
 
-        ! call ed_converged(converged)
+        call minimization(x,nwloc,Nsite,nxsize,omega,D_ev,Nbath,Norb,comm,xmin)
+        if(node.eq.0) then 
+            write(6,'("Minimized difference :",e,3x,"df :",e)') xmin, tol
+            call x_to_ev(x,nxsize,Nsite,Nbath,Norb,ef,ek,vk)
+            write(6,*) "  orbital     impurity levles"
+            do i = 1, Norb
+                write(6,'(i,3x,e)') i, ef(i)
+            enddo
 
+            do korb = 1, Norb
+                write(6,*) "FOR",korb,"ORBITAL"
+                do i = Norb+1, Nsite
+                    write(6,'(e,4x,e)') ek(i),vk(korb,i-norb)
+                enddo
+                write(6,*) 
+            enddo
+            tol = 0.D0
+            do korb = 1, Norb
+                tol = tol + &
+                    sum(abs(Gr_prev(korb,:)-Gr(korb,:)))/float(Nw)
+            enddo
+            tol = tol/float(Norb)
+            if(node.eq.0) &
+                write(6,'(i5,3x,a,x,e)') iloop, "tolerance is", tol
+            Gr_prev = Gr
+        endif
+        call mpi_barrier(comm,ierr)
+        call mpi_bcast(ef(1),norb,mpi_double_precision,0,comm,ierr)
+        call mpi_bcast(ek(1),Nsite,mpi_double_precision,0,comm,ierr)
+        call mpi_bcast(vk(1,1),Nbath*Norb,mpi_double_precision,0,comm,ierr)
+        call mpi_bcast(tol,1,mpi_double_precision,0,comm,ierr)
+
+        converged = tol.lt.scf_tol
+
+        call calc_dev
         iloop = iloop + 1
-    enddo
+    enddo dmft_loop
 
     call timestamp2("DMFT LOOP END")
     
