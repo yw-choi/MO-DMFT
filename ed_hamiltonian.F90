@@ -10,7 +10,7 @@ module ed_hamiltonian
     implicit none
     include 'mpif.h'
 
-    complex(dp), allocatable :: Hk(:,:,:)
+    complex(dp), allocatable, save :: Hk(:,:,:)
     real(dp), allocatable :: ef(:)
 
     ! current sector of the hamiltonain.
@@ -29,16 +29,15 @@ contains
     subroutine ed_set_band_structure
         integer nw
         parameter(nw=1000) 
-        real(dp):: kx,ky,pi,de,energy
-        parameter(pi=acos(-1.D0))
+        real(dp):: kx,ky,de,energy
         real(dp):: dq !gb gaussian broadening
         integer:: i,j,ik,nk,iorb
 
-        de = 0.01D0
+        de = 0.01_dp
 
-        Hk(:,:,:) = dcmplx(0.D0,0.D0)
+        Hk(:,:,:) = cmplx(0.0_dp,0.0_dp)
         nk = int(dsqrt(dfloat(Nq)))
-        dq = 2.D0*pi/float(nk)
+        dq = 2.0_dp*pi/float(nk)
 
         ik = 0
         do i = 1, nk
@@ -62,7 +61,7 @@ contains
             do i = 1, Norb
                 write(6,'(i2,3x,e)') i, ef(i)
             enddo
-
+            write(6,*) 
         endif
 
     end subroutine ed_set_band_structure
@@ -96,7 +95,8 @@ contains
         integer :: ispin,jspin,iorb,jorb,ibath
         integer(kind=kind_basis) :: basis_i, basis_j
 
-        real(dp) :: coeff_sum, coeff
+        real(dp) :: coeff_sum
+        real(dp) :: coeff
 
         allocate(A_all(basis%ntot))
         call mpi_allgatherv(A,basis%nloc,mpi_double_precision,A_all,&

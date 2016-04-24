@@ -1,10 +1,10 @@
 # 
 SIESTA_ARCH   = ifort-mpich
 FC            = mpif90
-# FFLAGS        = -traceback -fast -no-ipo -xSSE4.2 \
-#                 -I$(MKLROOT)/include/fftw
-FFLAGS        = -traceback -C -CB \
-                -I$(MKLROOT)/include/fftw 
+FFLAGS        = -traceback -fast -no-ipo -xSSE4.2 \
+                -I$(MKLROOT)/include/fftw
+# FFLAGS        = -traceback -C -CB \
+#                 -I$(MKLROOT)/include/fftw 
 
 
 MKL_FFTW_PATH = $(MKLROOT)/interfaces/fftw3xf

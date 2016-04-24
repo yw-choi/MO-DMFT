@@ -4,4 +4,4 @@ lib
 *.mod
 run
 test
-
+*__genmod.f90

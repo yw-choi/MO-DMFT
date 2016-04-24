@@ -73,7 +73,7 @@ contains
       subroutine cinv( A, N, MAXN, Ainv )
 
       integer*4 N, MAXN
-      double complex A(MAXN,MAXN), Ainv(MAXN,MAXN)
+      complex(dp) A(MAXN,MAXN), Ainv(MAXN,MAXN)
 
 ! Inputs
 !   A       Matrix A to be inverted
@@ -85,8 +85,8 @@ contains
       integer*4 MAXMAXN
       parameter( MAXMAXN = 200 )
       integer*4 i, j, k, index(MAXMAXN), jPivot, indexJ
-      double precision scale(MAXMAXN), scaleMax, ratio, ratioMax
-      double complex AA(MAXMAXN,MAXMAXN), B(MAXMAXN,MAXMAXN), coeff, sum
+      real(dp) :: scale(MAXMAXN), scaleMax, ratio, ratioMax
+      complex(dp) :: AA(MAXMAXN,MAXMAXN), B(MAXMAXN,MAXMAXN), coeff, sum
 
       if( MAXN .gt. MAXMAXN ) then
         write(*,*) 'ERROR in cinv: Matrix too large'

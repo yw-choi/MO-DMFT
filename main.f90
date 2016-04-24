@@ -17,7 +17,7 @@ program MO_DMFT_ED
     implicit none
 
     ! local variables
-    integer :: iloop
+    integer :: iloop, i
     logical :: converged
 
     integer :: nev_calc
@@ -30,7 +30,10 @@ program MO_DMFT_ED
     call io_setup
 
     if (node.eq.0) then
+        write(6,"(a)") repeat("=",80)
+        write(6,*) "Multi-orbital DMFT calculation with ED solver"
         write(6,*) "Number of processors = ", nodes
+        write(6,*) 
     endif
 
     call timer('DMFT',0)
@@ -52,9 +55,14 @@ program MO_DMFT_ED
 
         call ed_calc_green_ftn(nev_calc)
 
-        ! call ed_delta_new
+        open(unit=137,file="green.dump",status="replace",form="formatted")
+        do i=1,nwloc
+            write(137,"(4F20.16)") omega(i), real(Gr(1,i)), aimag(Gr(1,i))
+        enddo
+        close(137)
+        call ed_delta_new
 
-        ! call n_from_gksum
+        call n_from_gksum
 
         ! call ed_minimize 
 

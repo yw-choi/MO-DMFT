@@ -1,8 +1,10 @@
 module ed_config
     use precision
     use fdf
+    use parallel_params
 
     implicit none
+    real(dp), parameter :: pi = 4.0_dp*ATAN(1.0_dp)
     integer, parameter :: kind_basis = 4
 
     ! dimensions of the problem
@@ -40,12 +42,32 @@ contains
 
     subroutine ed_read_options
         integer :: i,j
+        character(len=100) :: text
+        if (node.eq.0) then
+            write(6,*)
+            write(6,'(a)') repeat("=",80)
+            write(6,'(4x,a)') "Input Parameters"
+            write(6,'(a)') repeat("=",80)
+        endif
 
         Norb = fdf_integer("DMFT.Norbs",2)
         Nbath = fdf_integer("DMFT.Nbaths",2)
         Nsite = Norb+Nbath
 
+        if (node.eq.0) then
+            write(text,*) "Number of impurity orbitals"
+            write(6,'(3x,a40,2x,a,2x,I8)') text, '=', Norb
+            write(text,*) "Number of bath orbitals"
+            write(6,'(3x,a40,2x,a,2x,I8)') text, '=', Norb
+            write(text,*) "Number of sites"
+            write(6,'(3x,a40,2x,a,2x,I8)') text, '=', Nsite
+        endif
+
         Nsector = fdf_integer("DMFT.Nsectors",2)
+        if (node.eq.0) then
+            write(text,*) "Number of sectors"
+            write(6,'(3x,a40,2x,a,2x,I8)') text, '=', Nsector
+        endif
         allocate(nelec(1:nsector),nup(1:nsector))
 
         if (fdf_block('DMFT.Sectors', bfdf)) then
@@ -57,10 +79,20 @@ contains
             enddo
         endif
 
-        U = fdf_double("DMFT.U", 1.0_dp)
-        Jex = fdf_double("DMFT.J",0.3_dp) 
-        rMu = fdf_double("DMFT.Mu",1.0_dp)
-        beta = fdf_double("DMFT.beta", 100.0_dp)
+        U = fdf_double("DMFT.U", 1.0D0)
+        Jex = fdf_double("DMFT.J",0.3D0) 
+        rMu = fdf_double("DMFT.Mu",1.0D0)
+        beta = fdf_double("DMFT.beta", 100.0D0)
+        if (node.eq.0) then
+            write(text,*) "U"
+            write(6,'(3x,a40,2x,a,2x,F8.3)') text, '=', U
+            write(text,*) "J"
+            write(6,'(3x,a40,2x,a,2x,F8.3)') text, '=', Jex
+            write(text,*) "chemical potential"
+            write(6,'(3x,a40,2x,a,2x,F8.3)') text, '=', rMu
+            write(text,*) "beta (inverse temperature)"
+            write(6,'(3x,a40,2x,a,2x,F8.3)') text, '=', beta
+        endif
 
         allocate(ek(1:nsite),vk(1:norb,1:nbath))
         if (fdf_block('DMFT.Baths', bfdf)) then
@@ -81,7 +113,7 @@ contains
             enddo
         endif
 
-        small = fdf_double("DMFT.small", 0.05_dp)
+        small = fdf_double("DMFT.small", 0.05D0)
 
         Nstep = fdf_integer("DMFT.ContinuedFractionSteps", 50)
 
@@ -93,6 +125,29 @@ contains
         Nq = fdf_integer("DMFT.Nq",10000)
         Nw = fdf_integer("DMFT.Nw",2000)
 
+        if (node.eq.0) then
+            write(text,*) "Broadening parameter"
+            write(6,'(3x,a40,2x,a,2x,F8.3)') text, '=', small
+            write(text,*) "Number of steps in continued fraction"
+            write(6,'(3x,a40,2x,a,2x,I8)') text, '=', Nstep
+            write(text,*) "Maximum DMFT iterations"
+            write(6,'(3x,a40,2x,a,2x,I8)') text, '=', Nloop
+            write(text,*) "DMFT SCF tolerance"
+            write(6,'(3x,a40,2x,a,2x,E8.1)') text, '=', scf_tol
+            write(text,*) "Number of eigenvalues to be computed"
+            write(6,'(3x,a40,2x,a,2x,I8)') text, '=', nev
+            write(text,*) "Number of k-points in band structure"
+            write(6,'(3x,a40,2x,a,2x,I8)') text, '=', nq
+            write(text,*) "Number of frequency points"
+            write(6,'(3x,a40,2x,a,2x,I8)') text, '=', nw
+        endif
+
+        if (node.eq.0) then
+            write(6,'(a)') repeat("=",80)
+            write(6,'(4x,a)') "Input Parameters End"
+            write(6,'(a)') repeat("=",80)
+            write(6,*)
+        endif
     end subroutine ed_read_options
 
 end module ed_config
