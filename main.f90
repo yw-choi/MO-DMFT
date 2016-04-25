@@ -68,6 +68,7 @@ program MO_DMFT_ED
         !     write(137,"(4F20.16)") omega(i), real(Gr(1,i)), aimag(Gr(1,i))
         ! enddo
         ! close(137)
+        ! stop
         call ed_delta_new
 
         call n_from_gksum
@@ -79,20 +80,7 @@ program MO_DMFT_ED
 
         call minimization(x,nwloc,Nsite,nxsize,omega,D_ev,Nbath,Norb,comm,xmin)
         if(node.eq.0) then 
-            write(6,'("Minimized difference :",e,3x,"df :",e)') xmin, tol
             call x_to_ev(x,nxsize,Nsite,Nbath,Norb,ef,ek,vk)
-            write(6,*) "  orbital     impurity levles"
-            do i = 1, Norb
-                write(6,'(i,3x,e)') i, ef(i)
-            enddo
-
-            do korb = 1, Norb
-                write(6,*) "FOR",korb,"ORBITAL"
-                do i = Norb+1, Nsite
-                    write(6,'(e,4x,e)') ek(i),vk(korb,i-norb)
-                enddo
-                write(6,*) 
-            enddo
             tol = 0.D0
             do korb = 1, Norb
                 tol = tol + &
@@ -100,7 +88,7 @@ program MO_DMFT_ED
             enddo
             tol = tol/float(Norb)
             if(node.eq.0) &
-                write(6,'(i5,3x,a,x,e)') iloop, "tolerance is", tol
+                write(6,'(i5,3x,a,x,e)') iloop, "d_max=", tol
             Gr_prev = Gr
         endif
         call mpi_barrier(comm,ierr)

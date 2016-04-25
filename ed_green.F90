@@ -137,7 +137,7 @@ contains
         integer :: i, j
         type(basis_t) :: basis_out
         real(dp), allocatable :: v(:)
-        real(dp) :: nocc_i
+        real(dp) :: normsq
         integer :: nstep_calc
         complex(dp) :: cmplx_omega, grx
 
@@ -149,14 +149,13 @@ contains
         call apply_c(basis, eigvec, 1, iorb, ispin, basis_out, v)
         call lanczos_iteration(basis_out, v, nstep_calc, a, b)
 
+        normsq = mpi_dot_product(v,v,basis_out%nloc)
+        b(0) = normsq
+
         ! @TODO REMOVE DEBUG CODE
         ! open(unit=108,file="abp.dump",status="replace")
-        ! write(108,*) nstep_calc
-        ! write(108,"(2F20.16)") (a(i),sqrt(b(i)),i=0,nstep_calc)
-        ! close(108)
-
-        nocc_i = mpi_dot_product(v,v,basis_out%nloc)
-        b(0) = 1.0_dp-nocc_i
+        ! write(108,*) nstep_calc, eigval, pev, factor, iorb, ispin
+        ! write(108,"(2F25.16)") (a(i),b(i),i=0,nstep_calc)
         
         do i=1,nwloc
             cmplx_omega = cmplx(eigval,omega(i))
@@ -172,13 +171,15 @@ contains
         call apply_c(basis, eigvec, 2, iorb, ispin, basis_out, v)
         call lanczos_iteration(basis_out, v, nstep_calc, a, b)
 
-        ! @TODO REMOVE DEBUG CODE
-        ! open(unit=108,file="abn.dump",status="replace")
-        ! write(108,*) nstep_calc
-        ! write(108,"(2F20.16)") (a(i),sqrt(b(i)),i=0,nstep_calc)
-        ! close(108)
+        b(0) = 1.0_dp-normsq
 
-        b(0) = nocc_i
+        ! @TODO REMOVE DEBUG CODE
+        ! write(108,*) 
+        ! write(108,*) nstep_calc, eigval, pev, factor, iorb, ispin
+        ! write(108,"(2F25.16)") (a(i),b(i),i=0,nstep_calc)
+        ! close(108)
+        ! stop
+
         do i=1,nwloc
             cmplx_omega = cmplx(-eigval,omega(i))
             grx = b(nstep_calc)/(cmplx_omega+a(nstep_calc))

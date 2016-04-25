@@ -77,9 +77,7 @@ contains
     end subroutine ed_solve
 
     subroutine diag(basis, eigval, eigvec)
-#ifdef DEBUG
         include 'debug.h'
-#endif
         include 'stat.h'
         type(basis_t), intent(in) :: basis
         real(dp), intent(out) :: eigvec(basis%nloc,nev)
@@ -93,24 +91,28 @@ contains
         logical :: select(maxncv)
         character, parameter :: bmat = 'I'
         character(len=2), parameter :: which = 'SA'
-        integer :: iparam(11), ipntr(11), lworkl, info, ido, nconv, i, j, ncv
+        integer :: iparam(11), ipntr(11), lworkl, info, ido, nconv, i, j, ncv, &
+                   maxitr, mode, ishfts
         real(dp) :: sigma, tol
         real(dp) :: pdnorm2
         external :: pdnorm2, daxpy
 
-#ifdef DEBUG
         ndigit = -3
         logfil = 6
-        msaupd = 1
-#endif 
+        msaupd = 3
+
         ncv = nev*2
 
         lworkl = ncv*(ncv+8)
         tol = 0.0
 
-        iparam(1) = 1   ! ishfts
-        iparam(3) = 500 ! maxitr
-        iparam(7) = 1   ! mode
+        ishfts = 1
+        maxitr = 500
+        mode   = 1
+
+        iparam(1) = ishfts
+        iparam(3) = maxitr
+        iparam(7) = mode
 
         info = 0
         ido = 0
@@ -124,6 +126,7 @@ contains
                 exit
             endif
         enddo
+
         if ( info .lt. 0 ) then
             if ( node.eq. 0 ) then
                 print *, ' Error with pdsaupd, info = ', info
@@ -142,7 +145,7 @@ contains
             else
                 nconv =  iparam(5)
                 do j=1, nconv
-                    call multiply_H(basis,v(1:ldv,j),ax)
+                    call multiply_H(basis,v(:,j),ax)
                     call daxpy(basis%nloc, -d(j,1), v(1,j), 1, ax, 1)
                     d(j,2) = pdnorm2( comm, basis%nloc, ax, 1 )
                 enddo

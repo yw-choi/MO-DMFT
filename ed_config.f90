@@ -58,7 +58,7 @@ contains
             write(text,*) "Number of impurity orbitals"
             write(6,'(3x,a40,2x,a,2x,I8)') text, '=', Norb
             write(text,*) "Number of bath orbitals"
-            write(6,'(3x,a40,2x,a,2x,I8)') text, '=', Norb
+            write(6,'(3x,a40,2x,a,2x,I8)') text, '=', Nbath
             write(text,*) "Number of sites"
             write(6,'(3x,a40,2x,a,2x,I8)') text, '=', Nsite
         endif

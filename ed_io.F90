@@ -39,6 +39,9 @@ contains
 
         integer :: k
 
+        if (node.eq.0) then
+            write(6,*) "export_eigval: nev_calc = ", nev_calc
+        endif
 #ifdef DATA_PLAINTEXT
         open(unit=EIGVAL_IUNIT_BASE,file="eigenvalues.dat",form="formatted",&
             status="replace")
@@ -62,34 +65,37 @@ contains
 
         integer :: i, iunit, nev_calc_read
         if (node.eq.0) then
-        iunit = EIGVAL_IUNIT_BASE
+            iunit = EIGVAL_IUNIT_BASE+1
 #ifdef DATA_PLAINTEXT
-        open(unit=iunit,file="eigenvalues.dat",status="old",form="formatted")
+            open(unit=iunit,file="eigenvalues.dat",status="old",form="formatted")
 #else
-        open(unit=iunit,file="eigenvalues.dat",status="old",form="unformatted")
+            open(unit=iunit,file="eigenvalues.dat",status="old",form="unformatted")
 #endif
 
 #ifdef DATA_PLAINTEXT
-        read(iunit,*) nev_calc_read
+            read(iunit,*) nev_calc_read
 #else
-        read(iunit) nev_calc_read
+            read(iunit) nev_calc_read
 #endif
-        if (nev_calc_read.ne.nev_calc) then
-            if (node.eq.0) then
-                write(6,*) "import_eigval: nev_calc mismatch."
+            if (nev_calc_read.ne.nev_calc) then
+                if (node.eq.0) then
+                    write(6,*) "import_eigval: nev_calc mismatch."
+                endif
+                call die
+                return
             endif
-            call die
-            return
-        endif
 
-        do i=1,nev_calc
+            if (node.eq.0) then
+                write(6,*) "import_eigval: nev_calc = ", nev_calc
+            endif
+            do i=1,nev_calc
 #ifdef DATA_PLAINTEXT
-            read(iunit,*) ind(i), eigval(i), pev(i)
+                read(iunit,*) ind(i), eigval(i), pev(i)
 #else
-            read(iunit) ind(i), eigval(i), pev(i)
+                read(iunit) ind(i), eigval(i), pev(i)
 #endif
-        enddo
-        close(iunit)
+            enddo
+            close(iunit)
         endif
 
         call MPI_Bcast(nev_calc_read,1,mpi_integer,0,comm,ierr)

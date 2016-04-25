@@ -5,6 +5,8 @@ module ed_operators
     implicit none
 
 contains
+    ! pm = 1 : create
+    ! pm = 2 : destroy
     subroutine apply_c(basis,vec,pm,iorb,ispin,basis_out,vec_out)
         include 'mpif.h'
 
