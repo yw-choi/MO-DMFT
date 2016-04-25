@@ -7,6 +7,7 @@ module ed_green
     use ed_operators
     use ed_lanczos
     use ed_utils
+    use ed_solver
     use sys
 
     implicit none
@@ -18,6 +19,7 @@ module ed_green
     complex(dp), allocatable, save :: Gr(:,:), Gr_prev(:,:), D_ev(:,:), Gksum(:,:)
     real(dp), allocatable, save :: nocc(:)
 
+    integer, parameter :: IO_AB = 109
 contains
 
     subroutine ed_green_init
@@ -58,47 +60,30 @@ contains
     subroutine ed_calc_green_ftn(nev_calc)
         integer, intent(in) :: nev_calc
         
-        real(dp), allocatable :: eigval(:), pev(:)
         real(dP), allocatable :: eigvec(:)
-        integer, allocatable :: ind(:)
-        real(dp) :: Z, factor, nocc_up, nocc_down
-        integer :: i, isector, ilevel, nloc, iorb, iev, ispin, nd
+        real(dp) :: Z, factor, ap(0:nstep), bp(0:nstep), an(0:nstep), bn(0:nstep)
+        integer :: i, nloc, iorb, iev, ispin, nd, isector, ilevel
+        logical even
         type(basis_t) :: basis
-        call timer('calc_green', 1)
 
-        allocate(eigval(nev_calc),pev(nev_calc),ind(nev_calc))
-
-        if (node.eq.0) then
-            write(6,*) "ed_green: import eigvalues"
-        endif
-        call import_eigval(nev_calc,eigval,pev,ind)
-
-        Z = 0.0_dp
-        do i = 1, nev_calc
-           Z = Z + pev(i)
-        enddo
-
-        do i = 1, nev_calc 
-           pev(i) = pev(i)/Z
-        enddo
+        if(node.eq.0) open(unit=IO_AB,file="apbpanbn.dat",form="unformatted")
 
         Gr(:,:) = 0.0_dp 
 
-        ! nocc(:,:) = 0.0_dp
-
         nevloop: do iev=1,nev_calc
-            isector = (ind(iev)-1)/nev+1
-            ilevel = mod(ind(iev)-1,nev)+1
-
             if (node.eq.0) then
-                write(6,*) "ed_green: iev=",iev,", isector=",isector,",ilevel=",ilevel
+                write(6,"(x,a,I3)") "ed_green: calculating Green's function of iev = ",iev
             endif
+            isector = eigval(iev)%sector
+            ilevel  = eigval(iev)%level
 
             nd = nelec(isector)-nup(isector)
             if (nd.eq.nup(isector)) then
                 factor=1.0_dp
+                even = .true.
             else
                 factor=0.5_dp
+                even = .false.
             endif
 
             call import_eigvec(isector,ilevel,node,nloc,eigvec)
@@ -113,25 +98,32 @@ contains
 
             ! spin up part 
             do iorb = 1,norb
-                call green_diag(basis,eigvec,eigval(iev),pev(iev),factor,iorb, 1)
+                call green_diag(basis,eigvec,eigval(iev)%val,eigval(iev)%prob,factor,&
+                                iorb,1,ap,bp,an,bn)
+                 write(IO_AB) iev,iorb,eigval(iev)%val,eigval(iev)%prob,even,&
+                           (ap(i),i=0,Nstep),(bp(i),i=0,Nstep),&
+                           (an(i),i=0,Nstep),(bn(i),i=0,Nstep)
             enddo
 
             if (nd.ne.nup(isector)) then
                 ! spin down part
                 do iorb = 1,norb
-                    call green_diag(basis,eigvec,eigval(iev),pev(iev),factor,iorb, 2)
+                    call green_diag(basis,eigvec,eigval(iev)%val,eigval(iev)%prob,factor&
+                                    ,iorb,2,ap,bp,an,bn)
+                    write(IO_AB) iev,iorb,eigval(iev)%val,eigval(iev)%prob,even,&
+                                (ap(i),i=0,Nstep),(bp(i),i=0,Nstep),&
+                                (an(i),i=0,Nstep),(bn(i),i=0,Nstep)
                 enddo
 
             endif
         enddo nevloop
-        call timer('calc_green', 2)
-        return
     end subroutine ed_calc_green_ftn
 
-    subroutine green_diag(basis,eigvec,eigval,pev,factor,iorb,ispin)
+    subroutine green_diag(basis,eigvec,eigval,pev,factor,iorb,ispin,ap,bp,an,bn)
         type(basis_t), intent(in) :: basis
         integer, intent(in) :: iorb, ispin
         real(dp), intent(in) :: eigvec(basis%nloc), eigval, pev, factor
+        real(dp), intent(out) :: ap(0:nstep), bp(0:nstep), an(0:nstep), bn(0:nstep)
 
         ! local variables
         integer :: i, j
@@ -143,25 +135,19 @@ contains
 
         ! lanczos matrix elements
         real(dp), allocatable :: a(:), b(:) 
-        call timer('green_diag',1)
 
         ! One more particle at iorb,ispin
         call apply_c(basis, eigvec, 1, iorb, ispin, basis_out, v)
-        call lanczos_iteration(basis_out, v, nstep_calc, a, b)
+        call lanczos_iteration(basis_out, v, nstep_calc, ap, bp)
 
         normsq = mpi_dot_product(v,v,basis_out%nloc)
-        b(0) = normsq
+        bp(0) = normsq
 
-        ! @TODO REMOVE DEBUG CODE
-        ! open(unit=108,file="abp.dump",status="replace")
-        ! write(108,*) nstep_calc, eigval, pev, factor, iorb, ispin
-        ! write(108,"(2F25.16)") (a(i),b(i),i=0,nstep_calc)
-        
         do i=1,nwloc
             cmplx_omega = cmplx(eigval,omega(i))
-            grx = b(nstep_calc)/(cmplx_omega-a(nstep_calc))
+            grx = bp(nstep_calc)/(cmplx_omega-ap(nstep_calc))
             do j = nstep_calc-1, 0, -1
-                grx = b(j)/(cmplx_omega-a(j)-grx)
+                grx = bp(j)/(cmplx_omega-ap(j)-grx)
             enddo 
 
             Gr(iorb,i) = Gr(iorb,i) + pev*factor*grx
@@ -169,65 +155,29 @@ contains
 
         ! One less particle at iorb,ispin
         call apply_c(basis, eigvec, 2, iorb, ispin, basis_out, v)
-        call lanczos_iteration(basis_out, v, nstep_calc, a, b)
+        call lanczos_iteration(basis_out, v, nstep_calc, an, bn)
 
-        b(0) = 1.0_dp-normsq
-
-        ! @TODO REMOVE DEBUG CODE
-        ! write(108,*) 
-        ! write(108,*) nstep_calc, eigval, pev, factor, iorb, ispin
-        ! write(108,"(2F25.16)") (a(i),b(i),i=0,nstep_calc)
-        ! close(108)
-        ! stop
+        bn(0) = 1.0_dp-normsq
 
         do i=1,nwloc
             cmplx_omega = cmplx(-eigval,omega(i))
-            grx = b(nstep_calc)/(cmplx_omega+a(nstep_calc))
+            grx = bn(nstep_calc)/(cmplx_omega+an(nstep_calc))
             do j = nstep_calc-1, 0, -1
-                grx = b(j)/(cmplx_omega+a(j)-grx)
+                grx = bn(j)/(cmplx_omega+an(j)-grx)
             enddo 
 
             Gr(iorb,i) = Gr(iorb,i) + pev*factor*grx
         enddo
-        call timer('green_diag',2)
     end subroutine green_diag
-
-    subroutine find_nocc(basis,vec,iorb,no_up,no_dn)
-        type(basis_t), intent(in) :: basis
-        integer, intent(in) :: iorb
-        real(dp), intent(in) :: vec(basis%nloc)
-
-        real(dp), intent(out) :: no_up, no_dn
-
-        integer :: i
-        real(dp) :: ind_up(basis%nloc), ind_dn(basis%nloc)
-        real(dp) :: no_up_tmp, no_dn_tmp
-        integer(kind=kind_basis) :: basis_i
-
-        ind_up(:) = 0.0_dp
-        ind_dn(:) = 0.0_dp
-        do i = 1, basis%nloc
-            basis_i = ed_basis_get(basis,i)
-            if(BTEST(basis_i,iorb)) ind_up(i) = 1.0_dp
-            if(BTEST(basis_i,Nsite+iorb)) ind_dn(i) = 1.0_dp
-        enddo
-
-        no_up_tmp = sum(ind_up(:)*vec(:)*vec(:))
-        no_dn_tmp = sum(ind_dn(:)*vec(:)*vec(:))
-
-        call mpi_allreduce(no_up_tmp,no_up,1,mpi_double_precision,mpi_sum,&
-            comm,ierr)
-        call mpi_allreduce(no_dn_tmp,no_dn,1,mpi_double_precision,mpi_sum,&
-            comm,ierr)
-
-        return
-    end subroutine find_nocc
 
     subroutine ed_delta_new
         ! complex(dp) :: Atmp(Norb,Norb),Btmp(Norb,Norb)
         complex(dp) :: tmp
         integer :: iw, jq, iorb, korb
-        call timer('delta_new',1)
+
+        if (node.eq.0) then
+            write(6,*) "ed_delta_new: Calculating delta_new..."
+        endif
 
         ! @TODO H(k) is assumed to be diagonal
         do iw = 1,nwloc
@@ -248,8 +198,6 @@ contains
             Gksum(:,iw) = Gksum(:,iw)/float(Nq)
             D_ev(:,iw) = 1.0_dp/Gr(:,iw)-1.0_dp/Gksum(:,iw) + D_ev(:,iw)
         enddo
-        call timer('delta_new',2)
-        return
     end subroutine ed_delta_new
 
     real(dp) function kdel(iorb,korb)
@@ -262,7 +210,7 @@ contains
     end function kdel
 
     subroutine n_from_gksum
-        integer i,j,k,iw,iorb,nw,master
+        integer i,j,k,iw,iorb,nw
         complex(dp), allocatable:: Gksum_tot(:,:)
 
         call mpi_allreduce(nwloc,nw,1,mpi_integer,mpi_sum,comm,ierr)
@@ -276,12 +224,16 @@ contains
         enddo
 
         if (node.eq.0) then
+            write(6,*)
             write(6,*) "Occupations from local Green function"
+            write(6,*)
+            write(6,"(a)") " Orbital    Occupancy"
             do iorb = 1, norb
                 nocc(iorb) = 2.0_dp*sum(real(gksum_tot(iorb,:)))/beta+0.50_dp
-                write(6,'(a,i2,3x,f10.7)') "Orbital",iorb,nocc(iorb)
+                write(6,'(x,i7,4x,f9.6)') iorb,nocc(iorb)
             enddo
-            write(6,'(a,5x,f10.7)') "sum =", sum(nocc(:))
+            write(6,'(a,f9.6)') "   Total    ", sum(nocc(:))
+            write(6,*)
         endif
         deallocate(gksum_tot)
     end subroutine n_from_gksum

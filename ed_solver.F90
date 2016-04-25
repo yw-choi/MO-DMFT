@@ -10,40 +10,52 @@ module ed_solver
     use ed_io
     implicit none
 
+    real(dp), parameter :: PROB_THRESHOLD = 0.001_dp
+
+    type eigval_t 
+        real(dp) :: val
+        real(dp) :: prob
+        integer  :: sector
+        integer  :: level
+    end type eigval_t
+
+    type(eigval_t), allocatable :: eigval(:)
+    integer :: nev_calc
+
     public
 contains
 
-    subroutine ed_solve(iloop,nev_calc)
-        integer, intent(in) :: iloop
-        integer, intent(out) :: nev_calc
-
+    subroutine ed_solve
         integer :: isector, i, ne_up, ne_down
         real(dp), allocatable :: eigvec(:,:)
 
-        real(dp) :: eigval(nev), eigval_all(nev*nsector)
-        real(dp) :: pev(nev*nsector)
+        real(dp) :: eigval_sec(nev), eigval_all(nev*nsector)
+        real(dp) :: pev(nev*nsector), Z
         integer :: ind(nsector*nev)
         type(basis_t) :: basis
+        character(len=100) :: timerstr
 
-
-        call timer('ed_solve',1)
         do isector=1,nsector
             ne_up = nup(isector)
             ne_down = nelec(isector) - nup(isector)
 
             if (node.eq.0) then
-                write(*,*) "ed_solver: iloop = ",iloop," , isector = ",isector
-                write(*,*), "ed_solver: ne_up=", ne_up, " ne_down=",ne_down
+                write(*,"(x,a,I3)") "ed_solve: sector ",isector
             endif
 
             basis = generate_basis( ne_up, ne_down)
 
             allocate(eigvec(basis%nloc,nev))
 
-            call diag(basis,eigval,eigvec)
+            call timestamp2("diag start")
+            write(timerstr,"(a,I)") "sector",isector
+            call timer(timerstr,1)
+            call diag(basis,eigval_sec,eigvec)
+            call timer(timerstr,2)
+            call timestamp2("diag end  ")
 
             do i=1,nev
-                eigval_all((isector-1)*nev+i) = eigval(i)
+                eigval_all((isector-1)*nev+i) = eigval_sec(i)
                 call export_eigvec(isector,i,node,basis%nloc,nev,eigvec(:,i))
             enddo
 
@@ -56,28 +68,44 @@ contains
         nev_calc = 0
 
         do i = 1, nev
-            if(pev(ind(i)).gt.0.001D0) nev_calc = nev_calc + 1
+            if(pev(ind(i)).gt.PROB_THRESHOLD) nev_calc = nev_calc + 1
         enddo
      
-        if(Node.eq.0) then
-            write(6,'(i3,2x,a)') nev_calc, &
-                "levels will be considered( p > 1/1000 )"
-            write(6,*) "       Energy               probability" 
-            do i = 1, nev_calc
-                write(6,*) eigval_all(ind(i)), pev(ind(i))
+        if (allocated(eigval)) deallocate(eigval)
+
+        allocate(eigval(nev_calc))
+        Z = 0.0_dp
+        do i=1,nev_calc
+            eigval(i)%val = eigval_all(ind(i))
+            eigval(i)%prob = pev(ind(i))
+            eigval(i)%sector = (ind(i)-1)/nev+1
+            eigval(i)%level = mod(ind(i)-1,nev)+1
+
+            Z = Z + pev(ind(i))
+        enddo
+        
+        ! Normalizing the boltzman factor
+        do i=1,nev_calc
+            eigval(i)%prob = eigval(i)%prob / Z
+        enddo
+
+        if (node.eq.0) then
+            write(6,*)
+            write(6,*) "Obatined eigenvalues for all sectors."
+            write(6,"(a,ES10.3,a,I5)") " Number of eigenvalues (with prob > ", & 
+                                       PROB_THRESHOLD,") = ", nev_calc
+            write(6,*)
+            write(6,"(a)") " Eigenvalue          Prob         Sector   Level"
+            do i=1,nev_calc
+                write(6,"(1x,ES16.5,4x,ES11.5,2I8)") eigval(i)%val,eigval(i)%prob,&
+                                          eigval(i)%sector,eigval(i)%level
             enddo
+            write(6,*)
         endif
-
-        if(node.eq.0)  then
-            call export_eigval(nev_calc,eigval_all,pev,ind)
-        endif
-
-        call timer('ed_solve',2)
-        return
     end subroutine ed_solve
 
     subroutine diag(basis, eigval, eigvec)
-        include 'debug.h'
+        ! include 'debug.h'
         include 'stat.h'
         type(basis_t), intent(in) :: basis
         real(dp), intent(out) :: eigvec(basis%nloc,nev)
@@ -97,9 +125,9 @@ contains
         real(dp) :: pdnorm2
         external :: pdnorm2, daxpy
 
-        ndigit = -3
-        logfil = 6
-        msaupd = 3
+        ! ndigit = -3
+        ! logfil = 6
+        ! msaupd = 3
 
         ncv = nev*2
 
@@ -144,20 +172,22 @@ contains
                 endif
             else
                 nconv =  iparam(5)
-                do j=1, nconv
-                    call multiply_H(basis,v(:,j),ax)
-                    call daxpy(basis%nloc, -d(j,1), v(1,j), 1, ax, 1)
-                    d(j,2) = pdnorm2( comm, basis%nloc, ax, 1 )
-                enddo
-                call pdmout(comm, 6, nconv, 2, d, ncv, -6, &
-                    'Ritz values and direct residuals')
+                ! do j=1, nconv
+                !     call multiply_H(basis,v(:,j),ax)
+                !     call daxpy(basis%nloc, -d(j,1), v(1,j), 1, ax, 1)
+                !     d(j,2) = pdnorm2( comm, basis%nloc, ax, 1 )
+                ! enddo
+                ! call pdmout(comm, 6, nconv, 2, d, ncv, -6, &
+                !     'Ritz values and direct residuals')
             end if
         endif
 
-        do i=1,nev
+        eigval(:) = huge(1.0_dp)
+        do i=1,nconv
             eigvec(1:basis%nloc,i) = v(:,i)
             eigval(i) = d(i,1)
         enddo
+
     end subroutine diag
 
 end module ed_solver

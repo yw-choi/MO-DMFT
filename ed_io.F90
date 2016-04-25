@@ -67,10 +67,11 @@ contains
         if (node.eq.0) then
             iunit = EIGVAL_IUNIT_BASE+1
 #ifdef DATA_PLAINTEXT
-            open(unit=iunit,file="eigenvalues.dat",status="old",form="formatted")
+            open(unit=iunit,file="eigenvalues.dat",status="unknown",form="formatted")
 #else
-            open(unit=iunit,file="eigenvalues.dat",status="old",form="unformatted")
+            open(unit=iunit,file="eigenvalues.dat",status="unknown",form="unformatted")
 #endif
+            rewind iunit
 
 #ifdef DATA_PLAINTEXT
             read(iunit,*) nev_calc_read
@@ -78,21 +79,17 @@ contains
             read(iunit) nev_calc_read
 #endif
             if (nev_calc_read.ne.nev_calc) then
-                if (node.eq.0) then
-                    write(6,*) "import_eigval: nev_calc mismatch."
-                endif
+                write(6,*) "import_eigval: nev_calc mismatch."
                 call die
                 return
             endif
 
-            if (node.eq.0) then
-                write(6,*) "import_eigval: nev_calc = ", nev_calc
-            endif
+            write(6,*) "import_eigval: nev_calc = ", nev_calc
             do i=1,nev_calc
 #ifdef DATA_PLAINTEXT
                 read(iunit,*) ind(i), eigval(i), pev(i)
 #else
-                read(iunit) ind(i), eigval(i), pev(i)
+                read(iunit) ind(i),eigval(i),pev(i)
 #endif
             enddo
             close(iunit)

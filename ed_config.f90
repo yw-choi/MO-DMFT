@@ -133,7 +133,7 @@ contains
             write(text,*) "Maximum DMFT iterations"
             write(6,'(3x,a40,2x,a,2x,I8)') text, '=', Nloop
             write(text,*) "DMFT SCF tolerance"
-            write(6,'(3x,a40,2x,a,2x,E8.1)') text, '=', scf_tol
+            write(6,'(3x,a40,2x,a,2x,ES8.1)') text, '=', scf_tol
             write(text,*) "Number of eigenvalues to be computed"
             write(6,'(3x,a40,2x,a,2x,I8)') text, '=', nev
             write(text,*) "Number of k-points in band structure"
@@ -143,8 +143,6 @@ contains
         endif
 
         if (node.eq.0) then
-            write(6,'(a)') repeat("=",80)
-            write(6,'(4x,a)') "Input Parameters End"
             write(6,'(a)') repeat("=",80)
             write(6,*)
         endif

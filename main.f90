@@ -17,15 +17,14 @@ program MO_DMFT_ED
     implicit none
 
     ! local variables
-    integer :: iloop, i
+    integer :: iloop
     logical :: converged
 
-    integer :: nev_calc
-
     ! @TODO the follownig variables should be refactored to a separate module
-    integer :: nxsize,korb
-    real(dp) :: tol, xmin
-    real(dp), allocatable :: x(:)
+    integer :: nxsize,korb, i, k
+    real(dp) :: tol, xmin, dw
+    real(dp), allocatable :: x(:), Zq(:), Aff(:,:)
+    complex(dp), allocatable :: Sigma(:,:)
 
     ! initializations that is also done in SIESTA part.
     call MPI_Init(ierr)
@@ -59,23 +58,34 @@ program MO_DMFT_ED
     iloop = 0
     converged = .false.
     dmft_loop: do while(.not.converged.and.iloop<nloop)
-        call ed_solve(iloop,nev_calc)
+        if (node.eq.0) then
+            write(6,*)
+            write(6,'(a)') repeat("=",80)
+            write(6,*) "DMFT iteration ", iloop
+            write(6,'(a)') repeat("=",80)
+        endif
 
+        call timer("solver",1)
+        call ed_solve
+        call timer("solver",2)
+
+        call timer("greenftn",1)
         call ed_calc_green_ftn(nev_calc)
+        call timer("greenftn",2)
 
-        ! open(unit=137,file="green.dump",status="replace",form="formatted")
-        ! do i=1,nwloc
-        !     write(137,"(4F20.16)") omega(i), real(Gr(1,i)), aimag(Gr(1,i))
-        ! enddo
-        ! close(137)
-        ! stop
+        call timer("delta_new",1)
         call ed_delta_new
+        call timer("delta_new",2)
 
         call n_from_gksum
 
         ! *********************************************************************
         ! Update ek, vk
         ! *********************************************************************
+        call timer("minimization",1)
+        if (node.eq.0) then
+            write(6,*) "minimization: Finding new ek, vk..."
+        endif
         call ev_to_x(ek,vk,ef,Nsite,Nbath,nxsize,x)
 
         call minimization(x,nwloc,Nsite,nxsize,omega,D_ev,Nbath,Norb,comm,xmin)
@@ -87,8 +97,6 @@ program MO_DMFT_ED
                     sum(abs(Gr_prev(korb,:)-Gr(korb,:)))/float(Nw)
             enddo
             tol = tol/float(Norb)
-            if(node.eq.0) &
-                write(6,'(i5,3x,a,x,e)') iloop, "d_max=", tol
             Gr_prev = Gr
         endif
         call mpi_barrier(comm,ierr)
@@ -97,21 +105,109 @@ program MO_DMFT_ED
         call mpi_bcast(vk(1,1),Nbath*Norb,mpi_double_precision,0,comm,ierr)
         call mpi_bcast(tol,1,mpi_double_precision,0,comm,ierr)
 
-        converged = tol.lt.scf_tol
+        if (node.eq.0) then
+            write(6,*) "minimization: Updated ek and vk."
+        endif
+        call timer("minimization",2)
 
+        call timer("calc_dev",1)
+        if (node.eq.0) then
+            write(6,*) "calc_dev: Calculating new D_ev"
+        endif
         call calc_dev
+        call timer("calc_dev",2)
+
+        converged = tol.lt.scf_tol
+        if (node.eq.0) then
+            write(6,*)
+            write(6,"(x,a,ES12.5)") "scf_diff = ", tol
+            write(6,*)
+        endif
         iloop = iloop + 1
     enddo dmft_loop
 
+    if (node.eq.0) then
+        write(6,'(a)') repeat("=",80)
+        write(6,*)
+        if (converged) then
+            write(6,*) "DMFT SCF Convergence has reached at loop ", iloop
+            write(6,*)
+        else
+            write(6,"(a,i,a)") "[FAILURE] DMFT SCF loop did not converge within ",&
+                               nloop," iterations."
+            call die
+        endif
+    endif
+
     call timestamp2("DMFT LOOP END")
     
-    ! @TODO post-processing
+    if (node.eq.0) then
+        write(6,*)
+        write(6,*) "Calculating the self-energy..."
+    endif
+    ! Self-energy
+    allocate(Sigma(norb,nwloc))
+    do i = 1, nwloc
+        do k = 1, Norb
+            Sigma(k,i) = cmplx(0.0_dp,omega(i)) - D_ev(k,i) - 1.0_dp/Gr(k,i)
+        enddo
+    enddo
+    if(node.eq.0) then
+        open(unit=100,file="Sigma_dia.dat",form="formatted")
+        do i = 1, nwloc
+            write(100,'(5f10.5)') omega(i), (Sigma(k,i),k=1,norb)  ! cautious
+        enddo
+        close(100)
+    endif
+
+    allocate(Zq(norb))
+    if(node.eq.0) then
+        do i = 1, norb
+            Zq(i) = (aimag(Sigma(i,1)))/(omega(1))
+            Zq(i) = 1.D0/(1.D0-Zq(i))
+        enddo
+        write(6,'(a,2x,2e)') "Quasiparticle weight = ",(Zq(i),i=1,norb)
+    endif
+    deallocate(Sigma,Zq)
+    deallocate(omega)
+
+    allocate(omega(Nw))
+    allocate(Aff(norb,nw))
+    dw = 0.01D0 
+    if(node.eq.0) then
+        write(6,*)
+        write(6,*) "Calculating the spectral function..."
+        do i = 1, Nw
+            omega(i) = (-Nw/2+i)*dw
+        enddo
+        call dos(nstep,norb,small,nw,omega,nev_calc,Aff)
+        open(unit=101,file="SpectralFtn.dat",form="formatted",status="unknown")
+        do i = -Nw/2, Nw/2-1
+            write(101,'(6e)') i*dw,(Aff(k,i+Nw/2+1),k=1,norb)
+        enddo
+        close(101)
+        write(6,*) ".... DOS CALCULATION COMPLETED"
+    endif
+    call mpi_barrier(comm,ierr)
+
+    if(node.eq.0) then
+        write(6,'(a,1x,i4,a)') &
+            "By ",iloop," iterations, convergence archived" 
+        write(6,*) "Converged ek(i), vk(i)"
+        do korb = 1, Norb
+        write(6,'(a,2x,i2)') "Orbital", korb
+        do i = Norb+1, Nsite
+        write(6,'(f10.5,4x,f10.5)') ek(i),vk(korb,i-norb)
+        enddo
+        write(6,*)
+        enddo
+    endif
+    call mpi_barrier(comm,ierr)
 
     call timestamp2("DMFT PART END")
     call timer('DMFT',2)
     call timer('all',3)
 
     call MPI_Finalize(ierr)
-
 end program MO_DMFT_ED
 

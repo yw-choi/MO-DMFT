@@ -11,24 +11,22 @@ module ed_lanczos
 
 contains
 
-    subroutine lanczos_iteration(basis,vec,nstep_calc,aout,bout)
+    subroutine lanczos_iteration(basis,vec,nstep_calc,a,b)
         include 'mpif.h'
 
         type(basis_t), intent(in) :: basis
         real(dp), intent(in) :: vec(basis%nloc) ! starting vector for lanczos iteration
 
         integer, intent(out) :: nstep_calc
-        real(dp), allocatable, intent(out) :: aout(:), bout(:)
+        real(dp), intent(out) :: a(0:nstep), b(0:nstep)
 
         ! lanczos vectors
-        real(dp), allocatable :: a(:), b(:)
         real(dp), allocatable :: v(:,:), w(:)
         real(dp) :: norm_v
         
         integer :: j, ierr
         
         allocate(v(basis%nloc,3),w(basis%nloc))
-        allocate(a(0:nstep),b(0:nstep))
 
         v(1:basis%nloc,2) = 0.0_dp
         w(1:basis%nloc) = 0.0_dp
@@ -63,9 +61,6 @@ contains
             v(:,3) = v(:,3)/sqrt(b(j))
             if(b(j).lt.1.e-12) then
                 nstep_calc = j
-                if (node.eq.0) then
-                    write(*,*) "lanczos: b_(j+1) = 0 at j=", j
-                endif
                 exit lanczos_loop
             endif
             v(:,1) = v(:,2)
@@ -118,14 +113,7 @@ contains
         !     nstep_calc = nstep
         ! endif
 
-        if (allocated(aout)) deallocate(aout)
-        if (allocated(bout)) deallocate(bout)
-        allocate(aout(0:nstep_calc),bout(0:nstep_calc))
-
-        aout(0:nstep_calc) = a(0:nstep_calc)
-        bout(0:nstep_calc) = b(0:nstep_calc)
-
-        deallocate(v,w,a,b)
+        deallocate(v,w)
     end subroutine lanczos_iteration
 
 end module ed_lanczos

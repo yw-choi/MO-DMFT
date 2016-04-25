@@ -46,7 +46,7 @@
          hour = values(5)
          min = values(6)
          sec = values(7)
-         write(6,1000) prefix, trim(str), colon,
+         write(6,1000) prefix, str, colon,
      $                 day, dash, month_str(month), dash, year,
      $                 hour, colon, min, colon, sec
 
