@@ -48,7 +48,7 @@ contains
             allocate(eigvec(basis%nloc,nev))
 
             call timestamp2("diag start")
-            write(timerstr,"(a,I)") "sector",isector
+            write(timerstr,"(a6,I1)") "sector",isector
             call timer(timerstr,1)
             call diag(basis,eigval_sec,eigvec)
             call timer(timerstr,2)

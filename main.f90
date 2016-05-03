@@ -11,8 +11,6 @@ program MO_DMFT_ED
     use ed_hamiltonian
     use ed_solver
     use ed_green
-    ! use ed_minimize
-    ! use ed_converged
 
     implicit none
 
@@ -82,7 +80,7 @@ program MO_DMFT_ED
         ! *********************************************************************
         ! Update ek, vk
         ! *********************************************************************
-        call timer("minimization",1)
+        call timer("minimize",1)
         if (node.eq.0) then
             write(6,*) "minimization: Finding new ek, vk..."
         endif
@@ -108,7 +106,7 @@ program MO_DMFT_ED
         if (node.eq.0) then
             write(6,*) "minimization: Updated ek and vk."
         endif
-        call timer("minimization",2)
+        call timer("minimize",2)
 
         call timer("calc_dev",1)
         if (node.eq.0) then
