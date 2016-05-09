@@ -156,7 +156,7 @@ program MO_DMFT_ED
     if(node.eq.0) then
         open(unit=100,file="Sigma_dia.dat",form="formatted")
         do i = 1, nwloc
-            write(100,'(5f10.5)') omega(i), (Sigma(k,i),k=1,norb)  ! cautious
+            write(100,'(100f10.5)') omega(i), (Sigma(k,i),k=1,norb)  ! cautious
         enddo
         close(100)
 
