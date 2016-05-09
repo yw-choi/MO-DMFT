@@ -216,5 +216,5 @@ contains
     enddo
 !      beta = betatmp
     return
-    end
+    end subroutine boltzmann_factor
 end module ed_solver
