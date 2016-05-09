@@ -32,16 +32,16 @@
        zero=0.D0
 
        fp = func(p,Ns,nwloc,nxsize,omega,D_ev,Nbath,Norb,comm)     ! initialization
-       ! if(taskid.eq.master)  write(6,'("Initial difference :",e)') fp
+       if(taskid.eq.master)  write(6,'("Initial difference :",e)') fp
        call dfunc(p,xi,nwloc,Ns,nxsize,omega,D_ev,Nbath,Norb,comm)
 
-       ! if(taskid.eq.0) then
-       !    write(6,*)   "               x                    df/dx      "
-       !    do i = 1, n
-       !       write(6,*) p(i),xi(i)
-       !    enddo
-       !    write(6,*) 
-       ! endif
+       if(taskid.eq.0) then
+          write(6,*)   "               x                    df/dx      "
+          do i = 1, n
+             write(6,*) p(i),xi(i)
+          enddo
+          write(6,*) 
+       endif
 
        do j = 1, n
           g(j) = -xi(j)
@@ -54,8 +54,8 @@
           call linmin(p,xi,n,fret,Ns,nwloc,nxsize,omega,&
                       D_ev,Nbath,Norb,comm)
           if(2.D0*abs(fret-fp).le.ftol*(abs(fret)+abs(fp)+eps)) then
-            ! if(taskid.eq.master) &
-            !    write(6,*) "After",its,"iteration converged." 
+            if(taskid.eq.master) &
+               write(6,*) "After",its,"iteration converged." 
              return
           endif
           fp=fret

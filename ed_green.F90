@@ -259,7 +259,6 @@ contains
     !################################################################################
     subroutine calc_dev
         integer ::i,korb,iorb,k
-        double complex ::D_ev(Norb,nwloc)
 
         do i = 1,nwloc
             do korb = 1, Norb

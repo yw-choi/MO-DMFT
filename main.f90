@@ -87,6 +87,7 @@ program MO_DMFT_ED
         endif
         call ev_to_x(ek,vk,ef,Nsite,Nbath,nxsize,x)
 
+        call mpi_barrier(comm,ierr)
         call minimization(x,nwloc,Nsite,nxsize,omega,D_ev,Nbath,Norb,comm,xmin)
         if(node.eq.0) then 
             call x_to_ev(x,nxsize,Nsite,Nbath,Norb,ef,ek,vk)

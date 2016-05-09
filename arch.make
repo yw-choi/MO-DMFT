@@ -9,8 +9,8 @@ FFLAGS        = -traceback -fast -no-ipo -xSSE4.2 \
 
 MKL_FFTW_PATH = $(MKLROOT)/interfaces/fftw3xf
 FFTW          = $(MKL_FFTW_PATH)/libfftw3xf_intel.a
-ARPACK        = ./lib/ARPACK/libarpack_OSX.a
-PARPACK       = ./lib/ARPACK/parpack_MPI-OSX.a
+ARPACK        = ./lib/ARPACK/libarpack_LINUX.a
+PARPACK       = ./lib/ARPACK/parpack_MPI-LINUX.a
 LIBS          = -mkl=sequential $(PARPACK) $(ARPACK) $(FFTW)
 
 ################################################################

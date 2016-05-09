@@ -16,27 +16,26 @@
       call mpi_comm_rank(comm,taskid,ierr)
 
       call x_to_ev(x,nxsize,Ns,Nbath,Norb,ef,ek,vk)
-
       do iw = 1, nwloc
          do korb = 1, Norb
-            delta(korb,iw) = dcmplx(0.D0,0.D0)
+            delta(korb,iw) = cmplx(0.D0,0.D0)
             do ksite = Norb+1, Ns
                delta(korb,iw) = delta(korb,iw) + &
                                 vk(korb,ksite)*vk(korb,ksite) &
-                                /(dcmplx(0.D0,omega(iw))-ek(ksite))
+                                /(cmplx(0.D0,omega(iw))-ek(ksite))
             enddo
             delta(korb,iw) = delta(korb,iw) + ef(korb)
          enddo
       enddo
-
       func_loc = 0.D0
       do iw = 1, nwloc
          do korb = 1, Norb
             cpx_temp = delta(korb,iw) - D_ev(korb,iw)
+      
             func_loc = func_loc + abs(cpx_temp)*abs(cpx_temp)/omega(iw)
          enddo
       enddo
-      
+
       call mpi_allreduce(nwloc,nw,1,mpi_integer,mpi_sum,comm,ierr)
       call mpi_allreduce(func_loc,func,1,mpi_double_precision,mpi_sum,comm,ierr)
 
@@ -74,11 +73,11 @@
 
       do iw = 1,nwloc
          do korb = 1, Norb
-            delta(korb,iw) = dcmplx(0.D0,0.D0)
+            delta(korb,iw) = cmplx(0.D0,0.D0)
             do ksite = Norb+1, Ns
                delta(korb,iw) = delta(korb,iw) + &
                                  vk(korb,ksite)*vk(korb,ksite) &
-                                   /(dcmplx(0.D0,omega(iw))-ek(ksite))
+                                   /(cmplx(0.D0,omega(iw))-ek(ksite))
             enddo
             delta(korb,iw) = delta(korb,iw) + ef(korb)
          enddo
@@ -92,10 +91,10 @@
          do korb = 1, Norb
             do iw = 1, nwloc
                 p_loc(ibath) = p_loc(ibath) + 2.D0*real(             &
-                    dconjg(delta(korb,iw)-D_ev(korb,iw))             &
+                    conjg(delta(korb,iw)-D_ev(korb,iw))             &
                    *vk(korb,Norb+ibath)*vk(korb,Norb+ibath)          &
-                   /(dcmplx(0.D0,omega(iw))-ek(Norb+ibath))          &
-                   /(dcmplx(0.D0,omega(iw))-ek(Norb+ibath))          &
+                   /(cmplx(0.D0,omega(iw))-ek(Norb+ibath))          &
+                   /(cmplx(0.D0,omega(iw))-ek(Norb+ibath))          &
                    )/omega(iw)
             enddo
          enddo
@@ -107,10 +106,10 @@
             p_loc(i) = 0.D0
             do iw = 1, nwloc
                p_loc(i) = p_loc(i)+2.D0*real(                       &
-                          dconjg(delta(iorb,iw)-D_ev(iorb,iw))      & 
-                         *vk(iorb,ksite)/(dcmplx(0.D0,omega(iw))-ek(ksite))   &
-                         + dconjg(delta(iorb,iw)-D_ev(iorb,iw)) &
-                         *vk(iorb,ksite)/(dcmplx(0.D0,omega(iw))-ek(ksite))   &
+                          conjg(delta(iorb,iw)-D_ev(iorb,iw))      & 
+                         *vk(iorb,ksite)/(cmplx(0.D0,omega(iw))-ek(ksite))   &
+                         + conjg(delta(iorb,iw)-D_ev(iorb,iw)) &
+                         *vk(iorb,ksite)/(cmplx(0.D0,omega(iw))-ek(ksite))   &
                          )/omega(iw)
             enddo
           enddo
@@ -386,13 +385,13 @@
 !        endif 
    
          allocate(cin_fft(nwtot*4),cout_fft(nwtot*4))
-         cin_fft(:) = dcmplx(0.D0,0.D0)
+         cin_fft(:) = cmplx(0.D0,0.D0)
     
          do j = 1, nwtot
-             cin_fft(2*j) = Gr_tot(j) - 1.D0/dcmplx(0.D0,(2*j-1)*pi/beta)
+             cin_fft(2*j) = Gr_tot(j) - 1.D0/cmplx(0.D0,(2*j-1)*pi/beta)
          enddo 
          do j = 2*nwtot+2,4*nwtot
-             cin_fft(j) = dconjg(cin_fft(4*nwtot-j+2))
+             cin_fft(j) = conjg(cin_fft(4*nwtot-j+2))
          enddo
          call cfft_1d_bk(4*nwtot,cin_fft,cout_fft)  
          cout_fft(:) = cout_fft(:)/beta
