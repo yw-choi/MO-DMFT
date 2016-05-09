@@ -9,7 +9,7 @@
       integer::iw,ksite,iorb,korb,Ns,nwloc,nxsize,Nbath,Norb,nw,i
       double complex::cpx_omega,delta(Norb,nwloc),cpx_temp,&
                       D_ev(Norb,nwloc)
-      double precision::x(nxsize),func,func_loc,ek(Ns),vk(Norb,1:Ns),&
+      double precision::x(nxsize),func,func_loc,ek(Ns),vk(Norb,Norb+1:Ns),&
                       omega(nwloc),ef(Norb),kdel
 
       call mpi_comm_size(comm,nprocs,ierr)
@@ -22,7 +22,7 @@
             delta(korb,iw) = dcmplx(0.D0,0.D0)
             do ksite = Norb+1, Ns
                delta(korb,iw) = delta(korb,iw) + &
-                                vk(korb,ksite-norb)*vk(korb,ksite-norb) &
+                                vk(korb,ksite)*vk(korb,ksite) &
                                 /(dcmplx(0.D0,omega(iw))-ek(ksite))
             enddo
             delta(korb,iw) = delta(korb,iw) + ef(korb)
@@ -58,7 +58,7 @@
       double complex:: cpx_omega,delta(Norb,nwloc), cpx_temp2,    &
                       D_ev(Norb,nwloc)
       double precision::x(nxsize),p(nxsize),p_loc(nxsize),ek(Ns),&
-                        vk(Norb,1:Ns),omega(nwloc),ef(Norb),&
+                        vk(Norb,Norb+1:Ns),omega(nwloc),ef(Norb),&
                         fp1,fp2,func,ptmp(nxsize),kdel
    
 !     do i = 1, nxsize
@@ -77,7 +77,7 @@
             delta(korb,iw) = dcmplx(0.D0,0.D0)
             do ksite = Norb+1, Ns
                delta(korb,iw) = delta(korb,iw) + &
-                                 vk(korb,ksite-norb)*vk(korb,ksite-norb) &
+                                 vk(korb,ksite)*vk(korb,ksite) &
                                    /(dcmplx(0.D0,omega(iw))-ek(ksite))
             enddo
             delta(korb,iw) = delta(korb,iw) + ef(korb)
@@ -93,7 +93,7 @@
             do iw = 1, nwloc
                 p_loc(ibath) = p_loc(ibath) + 2.D0*real(             &
                     dconjg(delta(korb,iw)-D_ev(korb,iw))             &
-                   *vk(korb,ibath)*vk(korb,ibath)          &
+                   *vk(korb,Norb+ibath)*vk(korb,Norb+ibath)          &
                    /(dcmplx(0.D0,omega(iw))-ek(Norb+ibath))          &
                    /(dcmplx(0.D0,omega(iw))-ek(Norb+ibath))          &
                    )/omega(iw)
@@ -108,9 +108,9 @@
             do iw = 1, nwloc
                p_loc(i) = p_loc(i)+2.D0*real(                       &
                           dconjg(delta(iorb,iw)-D_ev(iorb,iw))      & 
-                         *vk(iorb,ksite-norb)/(dcmplx(0.D0,omega(iw))-ek(ksite))   &
+                         *vk(iorb,ksite)/(dcmplx(0.D0,omega(iw))-ek(ksite))   &
                          + dconjg(delta(iorb,iw)-D_ev(iorb,iw)) &
-                         *vk(iorb,ksite-norb)/(dcmplx(0.D0,omega(iw))-ek(ksite))   &
+                         *vk(iorb,ksite)/(dcmplx(0.D0,omega(iw))-ek(ksite))   &
                          )/omega(iw)
             enddo
           enddo
@@ -168,7 +168,7 @@
       implicit none
       integer:: i,k,nxsize,Ns,Nbath,iorb,iinit,ifina,Norb
       double precision x(nxsize)
-      double precision ek(Ns),vk(Ns-Nbath,1:Nbath),ef(Ns-Nbath)
+      double precision ek(Ns),vk(Ns-Nbath,Ns-Nbath+1:Ns),ef(Ns-Nbath)
 
       Norb = Ns - Nbath
 
@@ -180,7 +180,7 @@
          iinit = Nbath+1+(iorb-1)*Nbath
          ifina = Nbath+iorb*Nbath
          do k = iinit, ifina
-            x(k) = vk(iorb,k-iinit+1)
+            x(k) = vk(iorb,Norb+k-iinit+1)
          enddo
       enddo
 
@@ -195,7 +195,7 @@
 
       implicit none
       integer:: i,nxsize,Ns,Nbath,Norb,iorb,ia,ib
-      double precision x(nxsize),ek(Ns),vk(Norb,1:Ns),ef(Norb)
+      double precision x(nxsize),ek(Ns),vk(Norb,Norb+1:Ns),ef(Norb)
 
       do i =1, Norb
          ek(i) = x(nxsize-Norb+i)
@@ -209,7 +209,7 @@
       do iorb = 1, Norb
          ia = (iorb-1)*Nbath
          do i = Norb+1, Ns
-            vk(iorb,i-norb) = x(i+Nbath+ia-Norb)
+            vk(iorb,i) = x(i+Nbath+ia-Norb)
          enddo
       enddo
 
@@ -279,34 +279,26 @@
       return
       end
  
-       subroutine boltzmann_factor(elv,nev,beta,p)
-    
-       implicit none
+      subroutine mpi_dot_product(A,B,n,comm,dab)
 
-       integer:: i, k, nev
-       double precision:: elv(nev), beta, p(nev), Z, en,betatmp
+      implicit none
+      include 'mpif.h'
+  
+      integer n,taskid,ierr,comm,nprocs,MASTER
+      parameter(MASTER=0)
+      double precision A(n), B(n), dab, dab_tmp
 
-!      write(6,*) "This calculation assumes zero temperature!!!!"
-!      betatmp = beta 
-!      beta = 10000*beta
-       do i = 1, nev
-          Z = 0.D0
-          en = elv(i)
-          do k = 1, nev
-             if(-beta*(elv(k)-en).gt.10.D0) then
-               p(i) = 0.D0
-               goto 100
-             else
-               Z = Z + exp(-beta*(elv(k)-en)) 
-             endif
-          enddo
-          p(i) = 1.D0/Z
-  100     continue 
-       enddo
-!      beta = betatmp
-       return
-       end
-    
+      call mpi_comm_rank(comm,taskid,ierr)
+      call mpi_comm_size(comm,nprocs,ierr) 
+
+      dab_tmp = dot_product(A(:),B(:)) 
+      call mpi_allreduce(dab_tmp,dab,1,mpi_double_precision,&
+                         mpi_sum,comm,ierr)
+
+      return    
+      end
+
+
       SUBROUTINE SORT(N,ARRIN,INDX)
 
 !     SORTS AN ARRAY BY THE HEAPSORT METHOD
@@ -360,89 +352,6 @@
         INDX(I)=INDXT
       GO TO 10
       END
- 
-      SUBROUTINE write_wffile_name(isector,ieigen,taskid,wffile) 
-
-      implicit none
-      integer isector, ieigen,taskid
-      character*20 wffile
-
-      if(taskid.lt.10) then
-        if(isector.lt.10.and.ieigen.lt.10) then
-           write(wffile,'(a,i1,a,i1,a,i1)') "wfsector",isector,"level"&
-                                             ,ieigen,"id",taskid
-        elseif(isector.ge.10.and.ieigen.lt.10) then
-           write(wffile,'(a,i2,a,i1,a,i1)') "wfsector",isector,"level"&
-                                             ,ieigen,"id",taskid
-        elseif(isector.lt.10.and.ieigen.ge.10) then
-           write(wffile,'(a,i1,a,i2,a,i1)') "wfsector",isector,"level"&
-                                             ,ieigen,"id",taskid
-        elseif(isector.ge.10.and.ieigen.ge.10) then
-           write(wffile,'(a,i2,a,i2,a,i1)') "wfsector",isector,"level"&
-                                             ,ieigen,"id",taskid
-        endif
-      else
-        if(isector.lt.10.and.ieigen.lt.10) then
-           write(wffile,'(a,i1,a,i1,a,i2)') "wfsector",isector,"level"&
-                                             ,ieigen,"id",taskid
-        elseif(isector.ge.10.and.ieigen.lt.10) then
-           write(wffile,'(a,i2,a,i1,a,i2)') "wfsector",isector,"level"&
-                                             ,ieigen,"id",taskid
-        elseif(isector.lt.10.and.ieigen.ge.10) then
-           write(wffile,'(a,i1,a,i2,a,i2)') "wfsector",isector,"level"&
-                                             ,ieigen,"id",taskid
-        elseif(isector.ge.10.and.ieigen.ge.10) then
-           write(wffile,'(a,i2,a,i2,a,i2)') "wfsector",isector,"level"&
-                                             ,ieigen,"id",taskid
-        endif
-      endif
-
-      return
-      end
-   
-      subroutine n_from_gksum(norb,nwloc,Gksum,displ_w,nloc_w,ncpu,beta,comm)
-
-      implicit none
-      include "mpif.h"
-
-      integer i,j,k,iw,iorb,nw,master
-      parameter(master=0)
-      integer norb, nwloc, ncpu, comm, taskid, nprocs, ierr
-      integer displ_w(0:ncpu-1), nloc_w(0:ncpu-1)
-      double precision nocc(norb),beta
-      double complex Gksum(norb,nwloc)
-      double complex, allocatable:: Gksum_tot(:,:)
-     
-      call mpi_comm_size(comm,nprocs,ierr)
-      call mpi_comm_rank(comm,taskid,ierr)
-
-      call mpi_allreduce(nwloc,nw,1,mpi_integer,mpi_sum,comm,ierr)
-
-      if(taskid.eq.master) write(6,'(a,2x,i8)') "nw =", nw
-
-      allocate(Gksum_tot(norb,nw))
-      do iorb = 1, norb
-         call mpi_gatherv(gksum(iorb,:),nwloc,mpi_double_complex,&
-                       Gksum_tot(iorb,:),&
-                       nloc_w,displ_w,mpi_double_complex,&
-                       master,comm,ierr)
-      enddo
-      
-      if(taskid.eq.master) then
-        write(6,*) "Occupations from local Green function"
-!       do i = 1, nw
-!          write(100,'(4e)') (gksum_tot(iorb,i),iorb=1,2)
-!       enddo
-        do iorb = 1, norb
-           nocc(iorb) = 2.D0*sum(real(gksum_tot(iorb,:)))/beta+0.5D0
-           write(6,'(a,i2,3x,f10.7)') "Orbtal",iorb,nocc(iorb)
-        enddo
-        write(6,'(a,5x,f10.7)') "sum =", sum(nocc(:))
-      endif
-      
-      deallocate(gksum_tot)
-      return
-      end
 
       subroutine find_gtau(Gr,norb,nw,displ_w,nlocal_w,beta,ncpu,comm)     
 

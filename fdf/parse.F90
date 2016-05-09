@@ -562,7 +562,7 @@ MODULE parse
       type(parsed_line), pointer        :: pline
 
 !------------------------------------------------ Output Variables
-      real(dp)                          :: reals
+      double precision                          :: reals
 
 !------------------------------------------------- Local Variables
       logical                           :: found
@@ -784,7 +784,7 @@ MODULE parse
       type(parsed_line), pointer        :: pline
 
 !------------------------------------------------ Output Variables
-      real(dp)                          :: values
+      double precision                          :: values
 
 !------------------------------------------------- Local Variables
       logical                           :: found
@@ -1247,7 +1247,7 @@ MODULE parse
 !------------------------------------------------- Local Variables
       character(len=MAX_LENGTH) :: token, msg
       integer(ip)               :: i, j, ierr
-      real(dp)                  :: real_value
+      double precision                  :: real_value
 
 !----------------------------------------------------------- BEGIN
       do i= 1, ntokens

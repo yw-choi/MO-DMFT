@@ -1,14 +1,14 @@
 module ed_utils
-    use precision
+    
     use parallel_params
     implicit none
 
 contains
-    real(dp) function mpi_dot_product(A,B,n) result(dab)
+    double precision function mpi_dot_product(A,B,n) result(dab)
         include 'mpif.h'
 
         integer n
-        real(dp) :: A(n), B(n), dab_tmp
+        double precision :: A(n), B(n), dab_tmp
 
         dab_tmp = sum(A(1:n)*B(1:n)) 
         call mpi_allreduce(dab_tmp,dab,1,mpi_double_precision,&
@@ -17,10 +17,10 @@ contains
         return
     end function mpi_dot_product
 
-    real(dp) function mpi_norm(A,n) result(dab)
+    double precision function mpi_norm(A,n) result(dab)
         include 'mpif.h'
         integer n
-        real(dp) :: A(n)
+        double precision :: A(n)
         dab = sqrt(mpi_dot_product(A,A,n))
         return    
     end function mpi_norm
@@ -73,7 +73,7 @@ contains
       subroutine cinv( A, N, MAXN, Ainv )
 
       integer*4 N, MAXN
-      complex(dp) A(MAXN,MAXN), Ainv(MAXN,MAXN)
+      double complex A(MAXN,MAXN), Ainv(MAXN,MAXN)
 
 ! Inputs
 !   A       Matrix A to be inverted
@@ -85,8 +85,8 @@ contains
       integer*4 MAXMAXN
       parameter( MAXMAXN = 200 )
       integer*4 i, j, k, index(MAXMAXN), jPivot, indexJ
-      real(dp) :: scale(MAXMAXN), scaleMax, ratio, ratioMax
-      complex(dp) :: AA(MAXMAXN,MAXMAXN), B(MAXMAXN,MAXMAXN), coeff, sum
+      double precision :: scale(MAXMAXN), scaleMax, ratio, ratioMax
+      double complex :: AA(MAXMAXN,MAXMAXN), B(MAXMAXN,MAXMAXN), coeff, sum
 
       if( MAXN .gt. MAXMAXN ) then
         write(*,*) 'ERROR in cinv: Matrix too large'

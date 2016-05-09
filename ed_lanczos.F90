@@ -1,5 +1,5 @@
 module ed_lanczos
-    use precision
+    
     use ed_config
     use ed_basis
     use ed_utils
@@ -15,24 +15,24 @@ contains
         include 'mpif.h'
 
         type(basis_t), intent(in) :: basis
-        real(dp), intent(in) :: vec(basis%nloc) ! starting vector for lanczos iteration
+        double precision, intent(in) :: vec(basis%nloc) ! starting vector for lanczos iteration
 
         integer, intent(out) :: nstep_calc
-        real(dp), intent(out) :: a(0:nstep), b(0:nstep)
+        double precision, intent(out) :: a(0:nstep), b(0:nstep)
 
         ! lanczos vectors
-        real(dp), allocatable :: v(:,:), w(:)
-        real(dp) :: norm_v
+        double precision, allocatable :: v(:,:), w(:)
+        double precision :: norm_v
         
         integer :: j, ierr
         
         allocate(v(basis%nloc,3),w(basis%nloc))
 
-        v(1:basis%nloc,2) = 0.0_dp
-        w(1:basis%nloc) = 0.0_dp
+        v(1:basis%nloc,2) = 0.0D0
+        w(1:basis%nloc) = 0.0D0
 
-        a(0:nstep) = 0.0_dp
-        b(0:nstep) = 0.0_dp
+        a(0:nstep) = 0.0D0
+        b(0:nstep) = 0.0D0
 
         v(:,1) = vec
         ! normalize the initial vector
@@ -40,7 +40,7 @@ contains
         v(:,1) = v(:,1)/sqrt(norm_v)
         call multiply_H(basis,v(:,1),w(:))
         a(0) = mpi_dot_product(v(:,1),w(:),basis%nloc)
-        b(0) = 0.0_dp
+        b(0) = 0.0D0
 
         v(:,2) = w(:) - a(0)*v(:,1)
         b(1) = mpi_dot_product(v(:,2),v(:,2),basis%nloc)

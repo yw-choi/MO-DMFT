@@ -11,12 +11,12 @@ contains
         include 'mpif.h'
 
         type(basis_t), intent(in) :: basis
-        real(dp), intent(in) :: vec(basis%nloc)
+        double precision, intent(in) :: vec(basis%nloc)
         integer, intent(in) :: pm, iorb, ispin
         type(basis_t), intent(out) :: basis_out
-        real(dp), allocatable, intent(out) :: vec_out(:)
+        double precision, allocatable, intent(out) :: vec_out(:)
 
-        real(dp), allocatable :: vec_all(:)
+        double precision, allocatable :: vec_all(:)
         integer(kind=kind_basis) :: basis_i, basis_j
         integer :: i,j,sgn
 
@@ -36,7 +36,7 @@ contains
 
         allocate(vec_out(basis_out%nloc))
         allocate(vec_all(basis%ntot))
-        vec_out = 0.0_dp
+        vec_out = 0.0D0
 
         call mpi_allgatherv(vec,basis%nloc,mpi_double_precision,vec_all,&
             basis%nlocals,basis%offsets,mpi_double_precision,comm,ierr)
@@ -69,14 +69,14 @@ contains
         integer(kind=kind_basis), intent(in) :: basis_in
         integer, intent(in) :: isite,ispin
         integer(kind=kind_basis), intent(out) :: basis_out
-        real(dp), intent(out) :: coeff
+        double precision, intent(out) :: coeff
 
         integer :: bitidx,sgn
         bitidx = get_bitidx(isite,ispin)
 
         call number_op(basis_in,isite,ispin,basis_out,sgn)
         if (sgn.eq.0) then
-            coeff = 0.0_dp
+            coeff = 0.0D0
             return
         endif
         
@@ -87,53 +87,53 @@ contains
         integer(kind=kind_basis), intent(in) :: basis_in
         integer, intent(in) :: iorb,ibath,ispin
         integer(kind=kind_basis), intent(out) :: basis_out
-        real(dp), intent(out) :: coeff
+        double precision, intent(out) :: coeff
 
         integer :: sgn
-        coeff = 1.0_dp
+        coeff = 1.0D0
         call destruction_op(basis_in,Norb+ibath,ispin,basis_out,sgn)
         if (sgn.eq.0) then
-            coeff = 0.0_dp
+            coeff = 0.0D0
             return
         endif
         coeff = coeff*sgn
         call creation_op(basis_out,iorb,ispin,basis_out,sgn)
         if (sgn.eq.0) then
-            coeff = 0.0_dp
+            coeff = 0.0D0
             return
         endif
         coeff = coeff*sgn
-        coeff = coeff*vk(iorb,ibath)
+        coeff = coeff*vk(iorb,norb+ibath)
     end subroutine hybridization1
 
     subroutine hybridization2(basis_in,iorb,ibath,ispin,basis_out,coeff)
         integer(kind=kind_basis), intent(in) :: basis_in
         integer, intent(in) :: iorb,ibath,ispin
         integer(kind=kind_basis), intent(out) :: basis_out
-        real(dp), intent(out) :: coeff
+        double precision, intent(out) :: coeff
 
         integer :: sgn
-        coeff = 1.0_dp
+        coeff = 1.0D0
         call destruction_op(basis_in,iorb,ispin,basis_out,sgn)
         if (sgn.eq.0) then
-            coeff = 0.0_dp
+            coeff = 0.0D0
             return
         endif
         coeff = coeff*sgn
         call creation_op(basis_out,Norb+ibath,ispin,basis_out,sgn)
         if (sgn.eq.0) then
-            coeff = 0.0_dp
+            coeff = 0.0D0
             return
         endif
         coeff = coeff*sgn
-        coeff = coeff*vk(iorb,ibath)
+        coeff = coeff*vk(iorb,norb+ibath)
     end subroutine hybridization2
 
     subroutine dens_dens(basis_in,iorb,jorb,ispin,jspin,basis_out,coeff)
         integer(kind=kind_basis), intent(in) :: basis_in
         integer, intent(in) :: iorb,jorb,ispin,jspin
         integer(kind=kind_basis), intent(out) :: basis_out
-        real(dp), intent(out) :: coeff
+        double precision, intent(out) :: coeff
 
         integer :: n1,n2
 
@@ -147,7 +147,7 @@ contains
 
         if (iorb.eq.jorb) then
             if (ispin.eq.jspin) then
-                coeff = 0.0_dp
+                coeff = 0.0D0
                 basis_out = 0
                 return
             endif
@@ -168,12 +168,12 @@ contains
         integer(kind=kind_basis), intent(in) :: basis_in
         integer, intent(in) :: iorb,jorb
         integer(kind=kind_basis), intent(out) :: basis_out
-        real(dp), intent(out) :: coeff
+        double precision, intent(out) :: coeff
 
         integer :: sgn_tot,sgn
 
         sgn_tot=1
-        coeff = 0.0_dp
+        coeff = 0.0D0
 
         if (iorb.eq.jorb) then
             basis_out = 0
@@ -221,12 +221,12 @@ contains
         integer(kind=kind_basis), intent(in) :: basis_in
         integer, intent(in) :: iorb,jorb
         integer(kind=kind_basis), intent(out) :: basis_out
-        real(dp), intent(out) :: coeff
+        double precision, intent(out) :: coeff
 
         integer :: sgn_tot,sgn
 
         sgn_tot=1
-        coeff = 0.0_dp
+        coeff = 0.0D0
 
         if (iorb.eq.jorb) then
             basis_out = 0

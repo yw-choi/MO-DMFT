@@ -1,6 +1,6 @@
 module ed_solver
 
-    use precision
+
     use ed_config
     use ed_hamiltonian
     use ed_basis
@@ -10,11 +10,11 @@ module ed_solver
     use ed_io
     implicit none
 
-    real(dp), parameter :: PROB_THRESHOLD = 0.001_dp
+    double precision, parameter :: PROB_THRESHOLD = 0.001D0
 
-    type eigval_t 
-        real(dp) :: val
-        real(dp) :: prob
+    type eigval_t
+        double precision :: val
+        double precision :: prob
         integer  :: sector
         integer  :: level
     end type eigval_t
@@ -27,10 +27,10 @@ contains
 
     subroutine ed_solve
         integer :: isector, i, ne_up, ne_down
-        real(dp), allocatable :: eigvec(:,:)
+        double precision, allocatable :: eigvec(:,:)
 
-        real(dp) :: eigval_sec(nev), eigval_all(nev*nsector)
-        real(dp) :: pev(nev*nsector), Z
+        double precision :: eigval_sec(nev), eigval_all(nev*nsector)
+        double precision :: pev(nev*nsector), Z
         integer :: ind(nsector*nev)
         type(basis_t) :: basis
         character(len=100) :: timerstr
@@ -70,11 +70,11 @@ contains
         do i = 1, nev
             if(pev(ind(i)).gt.PROB_THRESHOLD) nev_calc = nev_calc + 1
         enddo
-     
+
         if (allocated(eigval)) deallocate(eigval)
 
         allocate(eigval(nev_calc))
-        Z = 0.0_dp
+        Z = 0.0D0
         do i=1,nev_calc
             eigval(i)%val = eigval_all(ind(i))
             eigval(i)%prob = pev(ind(i))
@@ -83,7 +83,7 @@ contains
 
             Z = Z + pev(ind(i))
         enddo
-        
+
         ! Normalizing the boltzman factor
         do i=1,nev_calc
             eigval(i)%prob = eigval(i)%prob / Z
@@ -92,7 +92,7 @@ contains
         if (node.eq.0) then
             write(6,*)
             write(6,*) "Obatined eigenvalues for all sectors."
-            write(6,"(a,ES10.3,a,I5)") " Number of eigenvalues (with prob > ", & 
+            write(6,"(a,ES10.3,a,I5)") " Number of eigenvalues (with prob > ", &
                                        PROB_THRESHOLD,") = ", nev_calc
             write(6,*)
             write(6,"(a)") " Eigenvalue          Prob         Sector   Level"
@@ -108,12 +108,12 @@ contains
         ! include 'debug.h'
         include 'stat.h'
         type(basis_t), intent(in) :: basis
-        real(dp), intent(out) :: eigvec(basis%nloc,nev)
-        real(dp), intent(out) :: eigval(nev)
+        double precision, intent(out) :: eigvec(basis%nloc,nev)
+        double precision, intent(out) :: eigval(nev)
 
         integer  maxnloc,maxnev,maxncv,ldv
         parameter  (maxnloc=3500000,maxnev=40,maxncv=60,ldv=maxnloc)
-        real(dp) :: v(ldv,maxncv), workl(maxncv*(maxncv+8)),        &
+        double precision :: v(ldv,maxncv), workl(maxncv*(maxncv+8)),        &
                     workd(3*maxnloc), d(maxncv,2), resid(maxnloc),  &
                     ax(maxnloc)
         logical :: select(maxncv)
@@ -121,8 +121,8 @@ contains
         character(len=2), parameter :: which = 'SA'
         integer :: iparam(11), ipntr(11), lworkl, info, ido, nconv, i, j, ncv, &
                    maxitr, mode, ishfts
-        real(dp) :: sigma, tol
-        real(dp) :: pdnorm2
+        double precision :: sigma, tol
+        double precision :: pdnorm2
         external :: pdnorm2, daxpy
 
         ! ndigit = -3
@@ -182,7 +182,7 @@ contains
             end if
         endif
 
-        eigval(:) = huge(1.0_dp)
+        eigval(:) = huge(1.0D0)
         do i=1,nconv
             eigvec(1:basis%nloc,i) = v(:,i)
             eigval(i) = d(i,1)
@@ -190,4 +190,31 @@ contains
 
     end subroutine diag
 
+    subroutine boltzmann_factor(elv,nev,beta,p)
+
+    implicit none
+
+    integer:: i, k, nev
+    double precision:: elv(nev), beta, p(nev), Z, en,betatmp
+
+!      write(6,*) "This calculation assumes zero temperature!!!!"
+!      betatmp = beta
+!      beta = 10000*beta
+    do i = 1, nev
+       Z = 0.D0
+       en = elv(i)
+       do k = 1, nev
+          if(-beta*(elv(k)-en).gt.10.D0) then
+            p(i) = 0.D0
+            goto 100
+          else
+            Z = Z + exp(-beta*(elv(k)-en))
+          endif
+       enddo
+       p(i) = 1.D0/Z
+100     continue
+    enddo
+!      beta = betatmp
+    return
+    end
 end module ed_solver

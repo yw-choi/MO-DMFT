@@ -30,7 +30,7 @@ C  WRITTEN BY J.SOLER (JSOLER AT EMDUAM11) DEC/90
 C
 C  Modules
 C
-      use precision
+      
 #ifdef MPI
 #ifdef MPI
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
@@ -183,7 +183,7 @@ C  J.SOLER (JSOLER AT EMDUAM11) DEC/90
 C
 C  Modules
 C
-      use precision
+      
       use ionew
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       include 'mpif.h'

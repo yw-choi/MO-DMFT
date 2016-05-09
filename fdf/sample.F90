@@ -16,8 +16,8 @@ PROGRAM SAMPLE
   integer(sp)                :: i, j, ia, na, external_entry
   integer(sp)                :: isa(maxa)
   real(sp)                   :: wmix
-  real(dp)                   :: cutoff, phonon_energy, factor
-  real(dp)                   :: xa(3, maxa)
+  double precision                   :: cutoff, phonon_energy, factor
+  double precision                   :: xa(3, maxa)
   type(block_fdf)            :: bfdf
   type(parsed_line), pointer :: pline
 

@@ -1,10 +1,10 @@
 module ed_config
-    use precision
+    
     use fdf
     use parallel_params
 
     implicit none
-    real(dp), parameter :: pi = 4.0_dp*ATAN(1.0_dp)
+    double precision, parameter :: pi = 4.0D0*ATAN(1.0D0)
     integer, parameter :: kind_basis = 4
 
     ! dimensions of the problem
@@ -17,17 +17,17 @@ module ed_config
     integer, allocatable :: Nup(:)
 
     ! physical parameters
-    real(dp) :: U
-    real(dp) :: Jex
-    real(dp) :: rMu
-    real(dp) :: beta
+    double precision :: U
+    double precision :: Jex
+    double precision :: rMu
+    double precision :: beta
 
-    real(dp), allocatable :: ek(:)
-    real(dp), allocatable :: vk(:,:)
+    double precision, allocatable :: ek(:)
+    double precision, allocatable :: vk(:,:)
     
     ! calculation parameters
-    real(dp) :: small
-    real(dp) :: scf_tol
+    double precision :: small
+    double precision :: scf_tol
     integer :: Nstep
     integer :: Nloop
     integer :: Nev
@@ -94,7 +94,7 @@ contains
             write(6,'(3x,a40,2x,a,2x,F8.3)') text, '=', beta
         endif
 
-        allocate(ek(1:nsite),vk(1:norb,1:nbath))
+        allocate(ek(1:nsite),vk(1:norb,norb+1:nsite))
         if (fdf_block('DMFT.Baths', bfdf)) then
             i = 1
             do while( (i .le. nbath) .and. (fdf_bline(bfdf, pline)))
@@ -107,7 +107,7 @@ contains
             i = 1
             do while( i.le.nbath .and. (fdf_bline(bfdf, pline)))
                 do j=1,norb
-                    vk(j,i) = fdf_breals(pline,j)
+                    vk(j,norb+i) = fdf_breals(pline,j)
                 enddo
                 i = i + 1
             enddo

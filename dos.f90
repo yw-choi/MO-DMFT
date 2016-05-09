@@ -1,88 +1,106 @@
-        subroutine dos(Nstep,Norb,small,Nw,omega_real,nev_calc,&
-                       Aff)
-        implicit none
-    
+subroutine dos(omega_real,Aff)
+    use ed_config
+    use ed_solver
+    implicit none
 
-        double precision small,dw,Z
-        integer:: Norb,Nstep,nev_calc,nw,ishift,io,itmp,k,i
-        double precision::omega_real(nw),pev(nev_calc),E0
-        double precision::Aff(Norb,nw),Aff_tmp(Norb,nw),factor
-        double precision:: ap(0:Nstep),bp(0:Nstep),an(0:Nstep),bn(0:Nstep)
-        logical even
+    integer :: iev,iev_read,iorb,iorb_read,istep,nstep_calcp,nstep_calcn
+    double precision :: dw,Z,ev_read,prob_read
+    double precision :: omega_real(nw)
+    double precision :: Aff(Norb,nw),factor
+    double precision :: ap(0:Nstep),bp(0:Nstep),an(0:Nstep),bn(0:Nstep)
+    logical even
 
-        write(6,*) 
-        write(6,*) "************* SPECTRAL FUNCTION CALCULATION  &
-                   **************"
-        write(6,*) 
+    Aff(:,:) = 0.D0
 
-        Aff(:,:) = 0.D0 
-        Aff_tmp(:,:) = 0.D0 
+    open(unit=119,file="apbpanbn.dat",form="unformatted")
 
-        open(unit=11,file="apbpanbn.dat",form="unformatted")
+    do iev = 1, nev_calc
+        do iorb = 1, Norb
+            read(119) nstep_calcp, nstep_calcn
+            read(119) iev_read,iorb_read,ev_read,prob_read,even,&
+                (ap(istep),istep=0,nstep_calcp),(bp(istep),istep=0,nstep_calcp), &
+                (an(istep),istep=0,nstep_calcn),(bn(istep),istep=0,nstep_calcn)
 
-        do i = 1, nev_calc
-!          Diagonal component
-           do io = 1, Norb
-              read(11) itmp,itmp,E0,pev(i),even,&
-                                  (ap(k),k=0,Nstep),(bp(k),k=0,Nstep), &
-                                  (an(k),k=0,Nstep),(bn(k),k=0,Nstep)
+            if (iev.ne.iev_read.or.iorb.ne.iorb_read) then
+                print *, "Wrong lanczos coefficient : ",iev,iorb,iev_read,iorb_read
+                stop
+            elseif (abs(ev_read-eigval(iev)%val).gt.1d-10.or. &
+                    abs(prob_read-eigval(iev)%prob).gt.1d-10) then
+                print *, "Eigenvalue mismatch : ",iev,iorb,ev_read,prob_read, &
+                         eigval(iev)%val, eigval(iev)%prob
+                stop
+            endif
 
-              call dos_diag(Nstep,Norb,Nw,io,Aff_tmp,omega_real,E0,&
-                            small,ap,bp,an,bn)
-           enddo
-           factor = 0.5D0
-           if(even)  factor = 1.D0
-           Aff(:,:) = Aff(:,:) + pev(i)*Aff_tmp(:,:)*factor
-           if(even)  goto 1000
-
-           do io  = 1, Norb
-              read(11) itmp,itmp,E0,pev(i),even,&
-                               (ap(k),k=0,Nstep),(bp(k),k=0,Nstep), &
-                               (an(k),k=0,Nstep),(bn(k),k=0,Nstep)
-
-              call dos_diag(Nstep,Norb,Nw,io,Aff_tmp,omega_real,E0,&
-                         small,ap,bp,an,bn)
-           enddo
-           Aff(:,:) = Aff(:,:) + pev(i)*Aff_tmp(:,:)*factor
- 1000      continue
+            call dos_diag(iorb,aff,omega_real,nev_calc,eigval(iev)%val,eigval(iev)%prob,&
+                          even,nstep_calcp,nstep_calcn,ap,bp,an,bn)
         enddo
-        close(11)
 
-        return
-        end
+        if(even)  goto 1000
 
-        SUBROUTINE dos_DIAG(Nstep,Norb,Nw,io,Aff,omega_real,E0,&
-                            small,ap,bp,an,bn)
+        do iorb  = 1, Norb
+            read(119) nstep_calcp, nstep_calcn
+            read(119) iev_read,iorb_read,ev_read,prob_read,even,&
+                (ap(istep),istep=0,nstep_calcp),(bp(istep),istep=0,nstep_calcp), &
+                (an(istep),istep=0,nstep_calcn),(bn(istep),istep=0,nstep_calcn)
+            if (iev.ne.iev_read.or.iorb.ne.iorb_read) then
+                print *, "Wrong lanczos coefficient : ",iev,iorb,iev_read,iorb_read
+                stop
+            elseif (abs(ev_read-eigval(iev)%val).gt.1d-10.or. &
+                    abs(prob_read-eigval(iev)%prob).gt.1d-10) then
+                print *, "Eigenvalue mismatch : ",iev,iorb,ev_read,prob_read, &
+                         eigval(iev)%val, eigval(iev)%prob
+                stop
+            endif
 
-        implicit none
+            call dos_diag(iorb,aff,omega_real,nev_calc,eigval(iev)%val,eigval(iev)%prob,&
+                          even,nstep_calcp,nstep_calcn,ap,bp,an,bn)
+        enddo
+1000    continue
+    enddo
+    close(119)
 
-        integer i,j,k,io,Nstep,nw,Norb
-        double precision:: omega_real(Nw),small
-        double precision:: an(0:Nstep),bn(0:Nstep),ap(0:Nstep),bp(0:Nstep)
+    return
+end subroutine dos
 
-        double complex:: ztmp, cpx_omega,grx
-        double precision:: Aff(Norb,Nw),pi,E0
-        parameter(pi=acos(-1.0D0))
+subroutine dos_diag(iorb,aff,omega_real,nev_calc,ev,prob,even,nstep_calcp,nstep_calcn,&
+                    ap,bp,an,bn)
 
-        do j = 1, Nw
+    use ed_config
+    implicit none
 
-           cpx_omega=dcmplx(E0+omega_real(j),small)
-           grx = bp(Nstep)/(cpx_omega-ap(Nstep))
-           do k = Nstep-1, 0, -1
-              grx = bp(k)/(cpx_omega-ap(k)-grx)
-           enddo 
+    integer :: iorb, nev_calc, nstep_calcp, nstep_calcn
+    logical :: even
+    double precision :: omega_real(nw),ev,prob
+    double precision :: an(0:nstep_calcn),bn(0:nstep_calcn),ap(0:nstep_calcp),bp(0:nstep_calcp)
+    double precision:: Aff(Norb,Nw)
+    
+    integer :: iw, istep
+    double precision :: factor
+    double complex:: gr_tmp, cpx_omega, grx
 
-           ztmp = grx
+    if (even) then
+        factor = 1.0D0
+    else
+        factor = 0.5D0
+    endif
 
-           cpx_omega = dcmplx(omega_real(j)-E0,small)
-           grx = bn(Nstep)/(cpx_omega+an(Nstep))
-           do k = Nstep-1, 0, -1
-              grx = bn(k)/(cpx_omega+an(k)-grx)
-           enddo
-           grx = ztmp+grx
-           Aff(io,j) = -aimag(grx)/pi
-       enddo
+    do iw = 1, Nw
+        cpx_omega = cmplx(ev+omega_real(iw),small)
+        gr_tmp = bp(nstep_calcp)/(cpx_omega-ap(nstep_calcp))
+        do istep = nstep_calcp-1, 0, -1
+            gr_tmp = bp(istep)/(cpx_omega-ap(istep)-gr_tmp)
+        enddo
 
-       return
-       end
+        grx = gr_tmp
 
+        cpx_omega = cmplx(omega_real(iw)-ev,small)
+        gr_tmp = bn(nstep_calcn)/(cpx_omega+an(nstep_calcn))
+        do istep = nstep_calcn-1, 0, -1
+            gr_tmp = bn(istep)/(cpx_omega+an(istep)-gr_tmp)
+        enddo
+        grx = grx + gr_tmp
+        Aff(iorb,iw) = -aimag(grx)/pi
+    enddo
+
+    return
+end subroutine dos_diag

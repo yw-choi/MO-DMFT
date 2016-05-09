@@ -1,5 +1,5 @@
 module ed_hamiltonian
-    use precision
+    
     use ed_operators
     use ed_config
     use parallel_params
@@ -10,8 +10,8 @@ module ed_hamiltonian
     implicit none
     include 'mpif.h'
 
-    complex(dp), allocatable, save :: Hk(:,:,:)
-    real(dp), allocatable :: ef(:)
+    double complex, allocatable, save :: Hk(:,:,:)
+    double precision, allocatable :: ef(:)
 
     ! current sector of the hamiltonain.
     integer, private :: isector
@@ -29,15 +29,15 @@ contains
     subroutine ed_set_band_structure
         integer nw
         parameter(nw=1000) 
-        real(dp):: kx,ky,de,energy
-        real(dp):: dq !gb gaussian broadening
+        double precision:: kx,ky,de,energy
+        double precision:: dq !gb gaussian broadening
         integer:: i,j,ik,nk,iorb
 
-        de = 0.01_dp
+        de = 0.01D0
 
-        Hk(:,:,:) = cmplx(0.0_dp,0.0_dp)
+        Hk(:,:,:) = cmplx(0.0D0,0.0D0)
         nk = int(dsqrt(dfloat(Nq)))
-        dq = 2.0_dp*pi/float(nk)
+        dq = 2.0D0*pi/float(nk)
 
         ik = 0
         do i = 1, nk
@@ -71,45 +71,45 @@ contains
         !      A. Liebsch, A. Lichtenstein 
         implicit none
         integer i,j,k
-        real(dp) kx, ky, coskx, cosky
-        complex(dp) Hik(Norb,Norb)
+        double precision kx, ky, coskx, cosky
+        double complex Hik(Norb,Norb)
 
-        Hik(:,:) = dcmplx(0.0_dp,0.0_dp)
+        Hik(:,:) = dcmplx(0.0D0,0.0D0)
 
         coskx = cos(kx)
         cosky = cos(ky)
 
         do i = 1, norb
-            Hik(i,i) = -0.5_dp*(coskx + cosky)
+            Hik(i,i) = -0.5D0*(coskx + cosky)
         enddo
     end subroutine find_hk
 
     ! B = H*A 
     subroutine multiply_H(basis,A,B)
         type(basis_t), intent(in) :: basis
-        real(dp), intent(in) :: A(basis%nloc)
-        real(dp), intent(out) :: B(basis%nloc)
+        double precision, intent(in) :: A(basis%nloc)
+        double precision, intent(out) :: B(basis%nloc)
 
-        real(dp), allocatable :: A_all(:)
+        double precision, allocatable :: A_all(:)
         integer :: i,j,k
         integer :: ispin,jspin,iorb,jorb,ibath
         integer(kind=kind_basis) :: basis_i, basis_j
 
-        real(dp) :: coeff_sum
-        real(dp) :: coeff
+        double precision :: coeff_sum
+        double precision :: coeff
 
         allocate(A_all(basis%ntot))
         call mpi_allgatherv(A,basis%nloc,mpi_double_precision,A_all,&
             basis%nlocals,basis%offsets,mpi_double_precision,comm,ierr)
 
-        B(1:basis%nloc) = 0.0_dp
+        B(1:basis%nloc) = 0.0D0
         iloop: do i=1,basis%nloc
             ! i-th basis state
             basis_i = ed_basis_get(basis,i)
             
             ! [diagonal elements]
             ! B(i) = H(i,i)*A(i)
-            coeff_sum = 0.0_dp
+            coeff_sum = 0.0D0
             ! 1. onsite 
             do ispin=1,2
                 do iorb=1,Norb

@@ -2068,10 +2068,10 @@ MODULE fdf
       implicit none
 !--------------------------------------------------------------- Input Variables
       character(*)                        :: label
-      real(dp)                            :: default
+      double precision                            :: default
 
 !-------------------------------------------------------------- Output Variables
-      real(dp)                            :: fdf_double
+      double precision                            :: fdf_double
       type(line_dlist), pointer, optional :: line
 
 !--------------------------------------------------------------- Local Variables
@@ -2113,16 +2113,16 @@ MODULE fdf
       implicit none
 !--------------------------------------------------------------- Input Variables
       character(*)                        :: label, defunit
-      real(dp)                            :: default
+      double precision                            :: default
 
 !-------------------------------------------------------------- Output Variables
-      real(dp)                            :: fdf_physical
+      double precision                            :: fdf_physical
       type(line_dlist), pointer, optional :: line
 
 !--------------------------------------------------------------- Local Variables
       character(10)                       :: unitstr
       character(80)                       :: msg
-      real(dp)                            :: value
+      double precision                            :: value
       type(line_dlist), pointer           :: mark
 
 !------------------------------------------------------------------------- BEGIN
@@ -2179,14 +2179,14 @@ MODULE fdf
       character(*)           :: from, to
 
 !-------------------------------------------------------------- Output Variables
-      real(dp)               :: fdf_convfac
+      double precision               :: fdf_convfac
 
 !--------------------------------------------------------------- Local Variables
       integer(ip), parameter :: nu = 68
       character(10)          :: dimm(nu), name(nu)
       character(80)          :: msg
       integer(ip)            :: iu, ifrom, ito
-      real(dp)               :: unit(nu)
+      double precision               :: unit(nu)
 
 !------------------------------------------------------------------------- BEGIN
 

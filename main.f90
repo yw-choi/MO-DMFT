@@ -1,6 +1,6 @@
 program MO_DMFT_ED
 
-    use precision
+    
     use parallel_params
     use fdf
     use ionew
@@ -20,9 +20,10 @@ program MO_DMFT_ED
 
     ! @TODO the follownig variables should be refactored to a separate module
     integer :: nxsize,korb, i, k
-    real(dp) :: tol, xmin, dw
-    real(dp), allocatable :: x(:), Zq(:), Aff(:,:)
-    complex(dp), allocatable :: Sigma(:,:)
+    double precision :: tol, xmin, dw
+    double precision, allocatable :: x(:), Zq(:), Aff(:,:)
+    double complex, allocatable :: Sigma(:,:)
+    character(len=200) :: fn
 
     ! initializations that is also done in SIESTA part.
     call MPI_Init(ierr)
@@ -48,7 +49,7 @@ program MO_DMFT_ED
     call ed_set_band_structure
     call ed_green_init
 
-    nxsize = nbath + norb + nbath*norb
+    nxsize = nbath + nbath*norb + norb 
     allocate(x(nxsize))
 
     call timestamp2("DMFT LOOP START")
@@ -100,7 +101,7 @@ program MO_DMFT_ED
         call mpi_barrier(comm,ierr)
         call mpi_bcast(ef(1),norb,mpi_double_precision,0,comm,ierr)
         call mpi_bcast(ek(1),Nsite,mpi_double_precision,0,comm,ierr)
-        call mpi_bcast(vk(1,1),Nbath*Norb,mpi_double_precision,0,comm,ierr)
+        call mpi_bcast(vk(1,norb+1),Nbath*Norb,mpi_double_precision,0,comm,ierr)
         call mpi_bcast(tol,1,mpi_double_precision,0,comm,ierr)
 
         if (node.eq.0) then
@@ -143,19 +144,30 @@ program MO_DMFT_ED
         write(6,*)
         write(6,*) "Calculating the self-energy..."
     endif
+
     ! Self-energy
     allocate(Sigma(norb,nwloc))
     do i = 1, nwloc
         do k = 1, Norb
-            Sigma(k,i) = cmplx(0.0_dp,omega(i)) - D_ev(k,i) - 1.0_dp/Gr(k,i)
+            Sigma(k,i) = cmplx(0.0D0,omega(i)) - D_ev(k,i) - 1.0D0/Gr(k,i)
         enddo
     enddo
+
     if(node.eq.0) then
         open(unit=100,file="Sigma_dia.dat",form="formatted")
         do i = 1, nwloc
             write(100,'(5f10.5)') omega(i), (Sigma(k,i),k=1,norb)  ! cautious
         enddo
         close(100)
+
+        do k=1,norb
+            write(fn,"(A5,I2.2,A4)") "green",k,".dat"
+            open(unit=177,file=fn,status="replace",form="formatted")
+            do i=1,nwloc
+                write(177,*) omega(i), real(Gr(k,i)), aimag(Gr(k,i))
+            enddo
+            close(177)
+        enddo
     endif
 
     allocate(Zq(norb))
@@ -178,7 +190,7 @@ program MO_DMFT_ED
         do i = 1, Nw
             omega(i) = (-Nw/2+i)*dw
         enddo
-        call dos(nstep,norb,small,nw,omega,nev_calc,Aff)
+        call dos(omega,Aff)
         open(unit=101,file="SpectralFtn.dat",form="formatted",status="unknown")
         do i = -Nw/2, Nw/2-1
             write(101,'(6e)') i*dw,(Aff(k,i+Nw/2+1),k=1,norb)
@@ -195,7 +207,7 @@ program MO_DMFT_ED
         do korb = 1, Norb
         write(6,'(a,2x,i2)') "Orbital", korb
         do i = Norb+1, Nsite
-        write(6,'(f10.5,4x,f10.5)') ek(i),vk(korb,i-norb)
+        write(6,'(f10.5,4x,f10.5)') ek(i),vk(korb,i)
         enddo
         write(6,*)
         enddo

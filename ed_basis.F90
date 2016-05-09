@@ -3,7 +3,7 @@ module ed_basis
     use parallel_params, only: nodes, node,comm,ierr
     use sys
     use ed_utils, only: icom
-    use precision
+    
     
     implicit none
 

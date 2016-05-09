@@ -1,5 +1,5 @@
 module ed_io
-    use precision
+
     use parallel_params
     use ed_config
     use sys
@@ -12,7 +12,7 @@ contains
 
     subroutine export_eigvec(isector,iev,node,nloc,nev,eigvec)
         integer, intent(in) :: isector, iev, node, nloc, nev
-        real(dp), intent(in) :: eigvec(nloc)
+        double precision, intent(in) :: eigvec(nloc)
 
         integer :: i,iunit
         character(len=150) :: fname
@@ -34,8 +34,8 @@ contains
 
     subroutine export_eigval(nev_calc,eigval_all,pev,ind)
         integer, intent(in) :: nev_calc, ind(nsector*nev)
-        real(dp), intent(in) :: eigval_all(nev*nsector)
-        real(dp), intent(in) :: pev(nev*nsector)
+        double precision, intent(in) :: eigval_all(nev*nsector)
+        double precision, intent(in) :: pev(nev*nsector)
 
         integer :: k
 
@@ -60,7 +60,7 @@ contains
     subroutine import_eigval(nev_calc,eigval,pev,ind)
         include 'mpif.h'
         integer, intent(in) :: nev_calc
-        real(dp), intent(out) :: eigval(nev_calc), pev(nev_calc)
+        double precision, intent(out) :: eigval(nev_calc), pev(nev_calc)
         integer, intent(out) :: ind(nev_calc)
 
         integer :: i, iunit, nev_calc_read
@@ -105,7 +105,7 @@ contains
     subroutine import_eigvec( isector, iev, node, nloc, eigvec )
         integer, intent(in) :: isector, iev, node
         integer, intent(out) :: nloc
-        real(dp), allocatable, intent(out) :: eigvec(:)
+        double precision, allocatable, intent(out) :: eigvec(:)
 
         ! local variables
         logical :: file_exist
@@ -122,7 +122,7 @@ contains
             call die
             return
         endif
-        
+
 #ifdef DATA_PLAINTEXT
         open(unit=iunit,file=fname,status="old",form="formatted")
         read(iunit,"(I)") nloc

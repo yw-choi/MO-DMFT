@@ -261,7 +261,7 @@ MODULE utils
       character(*), intent(in) :: string
 
 !-------------------------------------------------------------- Output Variables
-      real(dp)                 :: s2r
+      double precision                 :: s2r
 
 !--------------------------------------------------------------- Local Variables
       integer(ip)              :: ierr
