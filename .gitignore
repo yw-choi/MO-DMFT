@@ -5,3 +5,4 @@ lib
 run
 test
 *__genmod.f90
+*.a
